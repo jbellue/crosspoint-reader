@@ -24,6 +24,7 @@ enum MenuItem {
   ITEM_PROGRESS_BAR_THICKNESS,
   ITEM_TITLE,
   ITEM_BATTERY,
+  ITEM_TIMER_REMAINING,
   ITEM_XTC_STATUS_BAR,
   ITEM_CLOCK,             // X3 only
   ITEM_CLOCK_FORMAT,      // X3 only
@@ -42,6 +43,7 @@ const StrId menuNames[FULL_MENU_ITEMS] = {
     StrId::STR_PROGRESS_BAR_THICKNESS,
     StrId::STR_TITLE,
     StrId::STR_BATTERY,
+    StrId::STR_TIMER_REMAINING,
     StrId::STR_XTC_STATUS_BAR,
     StrId::STR_CLOCK,
     StrId::STR_CLOCK_FORMAT,
@@ -172,6 +174,9 @@ void StatusBarSettingsActivity::handleSelection() {
     case ITEM_BATTERY:
       SETTINGS.statusBarBattery = (SETTINGS.statusBarBattery + 1) % 2;
       break;
+    case ITEM_TIMER_REMAINING:
+      SETTINGS.statusBarTimerRemaining = (SETTINGS.statusBarTimerRemaining + 1) % 2;
+      break;
     case ITEM_XTC_STATUS_BAR:
       SETTINGS.xtcStatusBarMode = (SETTINGS.xtcStatusBarMode + 1) % XTC_STATUS_BAR_ITEMS;
       break;
@@ -222,6 +227,8 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
             return I18N.get(titleNames[SETTINGS.statusBarTitle]);
           case ITEM_BATTERY:
             return SETTINGS.statusBarBattery ? tr(STR_SHOW) : tr(STR_HIDE);
+          case ITEM_TIMER_REMAINING:
+            return SETTINGS.statusBarTimerRemaining ? tr(STR_SHOW) : tr(STR_HIDE);
           case ITEM_XTC_STATUS_BAR:
             return I18N.get(xtcStatusBarNames[SETTINGS.xtcStatusBarMode]);
           case ITEM_CLOCK:
@@ -251,7 +258,8 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
     title = tr(STR_EXAMPLE_CHAPTER);
   }
 
-  GUI.drawStatusBar(renderer, 75, 8, 32, title, verticalPreviewPadding, 0, false);
+  const char* timerPreview = SETTINGS.statusBarTimerRemaining ? "<1m" : nullptr;
+  GUI.drawStatusBar(renderer, 75, 8, 32, title, verticalPreviewPadding, 0, false, timerPreview);
 
   renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding,
                     renderer.getScreenHeight() - UITheme::getInstance().getStatusBarHeight() - verticalPreviewPadding -

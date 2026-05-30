@@ -32,6 +32,16 @@ class EpubReaderActivity final : public Activity {
   bool pendingSyncSaveError = false;
   bool skipNextButtonCheck = false;  // Skip button processing for one frame after subactivity exit
   bool automaticPageTurnActive = false;
+  struct ReaderTimerState {
+    ReaderTimerMode mode = ReaderTimerMode::Off;
+    uint32_t remaining = 0;
+    uint32_t selectedValue = 0;
+    ReaderTimerMode snoozeMode = ReaderTimerMode::Time;
+    uint32_t snoozeValue = 0;
+    unsigned long lastTickMillis = 0UL;
+    bool expiryPromptPending = false;
+  };
+  ReaderTimerState readerTimer;
   bool showBookmarkMessage = false;
   bool ignoreNextConfirmRelease = false;
   // Tracks whether this book is currently removed from Recent Books by the
@@ -63,6 +73,11 @@ class EpubReaderActivity final : public Activity {
   void applyOrientation(uint8_t orientation);
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
   void pageTurn(bool isForwardTurn);
+  void applyTimerConfig(const ReaderTimerConfigResult& config);
+  void tickTimeTimer();
+  void consumeTimerStep(ReaderTimerMode mode, uint32_t amount);
+  void openTimerExpiryPrompt();
+  void applySnoozeConfig(const ReaderTimerConfigResult& config);
   void addBookmark();
 
   // Footnote navigation

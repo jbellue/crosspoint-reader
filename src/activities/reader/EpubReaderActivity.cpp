@@ -13,6 +13,7 @@
 #include <esp_system.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <functional>
 #include <iterator>
 #include <limits>
@@ -24,6 +25,8 @@
 #include "EpubReaderChapterSelectionActivity.h"
 #include "EpubReaderFootnotesActivity.h"
 #include "EpubReaderPercentSelectionActivity.h"
+#include "EpubReaderTimerActivity.h"
+#include "EpubReaderTimerPromptActivity.h"
 #include "EpubReaderUtils.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
@@ -37,10 +40,43 @@
 #include "util/BookmarkUtil.h"
 #include "util/ScreenshotUtil.h"
 
+extern void enterDeepSleep(bool fromTimeout);
+
 namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
 // pages per minute, first item is 1 to prevent division by zero if accessed
 constexpr int PAGE_TURN_RATES[] = {1, 1, 3, 6, 12};
+constexpr uint32_t TIMER_SNOOZE_SECONDS = 10UL * 60UL;
+
+bool formatReaderTimerRemaining(const ReaderTimerMode mode, const uint32_t remaining, char* out, const size_t outSize) {
+  if (!out || outSize == 0) {
+    return false;
+  }
+  out[0] = '\0';
+
+  if (mode == ReaderTimerMode::Off || remaining == 0) {
+    return false;
+  }
+
+  switch (mode) {
+    case ReaderTimerMode::Time:
+      if (remaining <= 60) {
+        snprintf(out, outSize, "<1m");
+      } else {
+        snprintf(out, outSize, "%lum", static_cast<unsigned long>(remaining / 60));
+      }
+      return true;
+    case ReaderTimerMode::Pages:
+      snprintf(out, outSize, "%lup", static_cast<unsigned long>(remaining));
+      return true;
+    case ReaderTimerMode::Chapters:
+      snprintf(out, outSize, "%luc", static_cast<unsigned long>(remaining));
+      return true;
+    case ReaderTimerMode::Off:
+    default:
+      return false;
+  }
+}
 
 int clampPercent(int percent) {
   if (percent < 0) {
@@ -119,6 +155,10 @@ void moveFinishedBookToReadFolder(const std::string& srcPath, const std::string&
 void EpubReaderActivity::onEnter() {
   Activity::onEnter();
 
+  readerTimer = ReaderTimerState{};
+  readerTimer.snoozeMode = ReaderTimerMode::Time;
+  readerTimer.snoozeValue = TIMER_SNOOZE_SECONDS;
+
   if (!epub) {
     return;
   }
@@ -193,6 +233,12 @@ void EpubReaderActivity::loop() {
   if (!epub) {
     // Should never happen
     finish();
+    return;
+  }
+
+  tickTimeTimer();
+  if (readerTimer.expiryPromptPending) {
+    openTimerExpiryPrompt();
     return;
   }
 
@@ -498,6 +544,16 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           });
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::TIMER: {
+      startActivityForResult(
+          std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, readerTimer.mode, readerTimer.selectedValue),
+          [this](const ActivityResult& result) {
+            if (!result.isCancelled) {
+              applyTimerConfig(std::get<ReaderTimerConfigResult>(result.data));
+            }
+          });
+      break;
+    }
     case EpubReaderMenuActivity::MenuAction::DISPLAY_QR: {
       if (section && section->currentPage >= 0 && section->currentPage < section->pageCount) {
         std::string fullText = section->getTextFromSectionFile();
@@ -649,10 +705,117 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
   }
 }
 
+void EpubReaderActivity::applyTimerConfig(const ReaderTimerConfigResult& config) {
+  readerTimer.mode = config.mode;
+  readerTimer.selectedValue = config.value;
+  readerTimer.remaining = config.value;
+  readerTimer.lastTickMillis = millis();
+  readerTimer.expiryPromptPending = false;
+  requestUpdate();
+}
+
+void EpubReaderActivity::applySnoozeConfig(const ReaderTimerConfigResult& config) {
+  if (config.mode == ReaderTimerMode::Off || config.value == 0) {
+    return;
+  }
+
+  readerTimer.snoozeMode = config.mode;
+  readerTimer.snoozeValue = config.value;
+  applyTimerConfig(config);
+}
+
+void EpubReaderActivity::tickTimeTimer() {
+  if (readerTimer.mode != ReaderTimerMode::Time || readerTimer.remaining == 0 || readerTimer.expiryPromptPending) {
+    return;
+  }
+
+  const unsigned long now = millis();
+  if (readerTimer.lastTickMillis == 0UL) {
+    readerTimer.lastTickMillis = now;
+    return;
+  }
+
+  const unsigned long elapsedMs = now - readerTimer.lastTickMillis;
+  if (elapsedMs < 1000UL) {
+    return;
+  }
+
+  const uint32_t elapsedSeconds = static_cast<uint32_t>(elapsedMs / 1000UL);
+  if (elapsedSeconds == 0) {
+    return;
+  }
+
+  if (elapsedSeconds >= readerTimer.remaining) {
+    readerTimer.remaining = 0;
+    readerTimer.expiryPromptPending = true;
+  } else {
+    readerTimer.remaining -= elapsedSeconds;
+  }
+  readerTimer.lastTickMillis = now;
+}
+
+void EpubReaderActivity::consumeTimerStep(const ReaderTimerMode mode, const uint32_t amount) {
+  if (readerTimer.mode != mode || amount == 0 || readerTimer.remaining == 0 || readerTimer.expiryPromptPending) {
+    return;
+  }
+
+  if (amount >= readerTimer.remaining) {
+    readerTimer.remaining = 0;
+    readerTimer.expiryPromptPending = true;
+  } else {
+    readerTimer.remaining -= amount;
+  }
+}
+
+void EpubReaderActivity::openTimerExpiryPrompt() {
+  readerTimer.expiryPromptPending = false;
+  startActivityForResult(std::make_unique<EpubReaderTimerPromptActivity>(renderer, mappedInput),
+                         [this](const ActivityResult& result) {
+                           if (result.isCancelled) {
+                             const ReaderTimerConfigResult initialSnooze{readerTimer.snoozeMode, readerTimer.snoozeValue};
+
+                             uint32_t finishChapterPagesLeft = 0;
+                             std::string finishChapterLabel;
+                             if (section && section->pageCount > 0 && section->currentPage >= 0 &&
+                                 section->currentPage < section->pageCount) {
+                               finishChapterPagesLeft = static_cast<uint32_t>(section->pageCount - section->currentPage);
+                             }
+
+                             if (finishChapterPagesLeft > 0) {
+                               char buf[96];
+                               snprintf(buf, sizeof(buf), tr(STR_SNOOZE_END_CHAPTER_FORMAT),
+                                        static_cast<int>(finishChapterPagesLeft));
+                               finishChapterLabel = buf;
+                             }
+
+                             startActivityForResult(
+                                 std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, initialSnooze.mode,
+                                                                            initialSnooze.value, StrId::STR_SNOOZE,
+                                                                            false, ReaderTimerMode::Pages,
+                                                                            finishChapterPagesLeft,
+                                                                            finishChapterLabel),
+                                 [this, initialSnooze](const ActivityResult& snoozeResult) {
+                                   if (snoozeResult.isCancelled) {
+                                     applySnoozeConfig(initialSnooze);
+                                     return;
+                                   }
+                                   applySnoozeConfig(std::get<ReaderTimerConfigResult>(snoozeResult.data));
+                                 });
+                             return;
+                           }
+
+                           enterDeepSleep(true);
+                         });
+}
+
 void EpubReaderActivity::pageTurn(bool isForwardTurn) {
+  bool consumedPageStep = false;
+  bool consumedChapterStep = false;
+
   if (isForwardTurn) {
     if (section->currentPage < section->pageCount - 1) {
       section->currentPage++;
+      consumedPageStep = true;
     } else {
       // We don't want to delete the section mid-render, so grab the semaphore
       {
@@ -661,6 +824,8 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
         currentSpineIndex++;
         section.reset();
       }
+      consumedPageStep = true;
+      consumedChapterStep = true;
     }
   } else {
     if (section->currentPage > 0) {
@@ -676,6 +841,14 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
       }
     }
   }
+
+  if (consumedPageStep) {
+    consumeTimerStep(ReaderTimerMode::Pages, 1);
+  }
+  if (consumedChapterStep) {
+    consumeTimerStep(ReaderTimerMode::Chapters, 1);
+  }
+
   lastPageTurnTime = millis();
   requestUpdate();
 }
@@ -1056,6 +1229,8 @@ void EpubReaderActivity::renderStatusBar() const {
   const float bookProgress = epub->calculateProgress(currentSpineIndex, sectionChapterProg) * 100;
 
   std::string title;
+  char timerTextBuf[16] = {0};
+  const char* timerText = nullptr;
 
   int textYOffset = 0;
 
@@ -1082,7 +1257,13 @@ void EpubReaderActivity::renderStatusBar() const {
     title = epub->getTitle();
   }
 
-  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset);
+  if (SETTINGS.statusBarTimerRemaining) {
+    if (formatReaderTimerRemaining(readerTimer.mode, readerTimer.remaining, timerTextBuf, sizeof(timerTextBuf))) {
+      timerText = timerTextBuf;
+    }
+  }
+
+  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, timerText);
 }
 
 void EpubReaderActivity::navigateToHref(const std::string& hrefStr, const bool savePosition) {

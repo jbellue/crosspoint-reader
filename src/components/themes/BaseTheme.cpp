@@ -727,7 +727,7 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
                               const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
-                              const bool fillMargin) const {
+                              const bool fillMargin, const char* timerText) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -800,6 +800,27 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     }
   }
 
+  // Draw Timer Remaining (left side with small clock icon)
+  int timerTextWidth = 0;
+  if (timerText && timerText[0] != '\0') {
+    const int iconSize = renderer.getTextHeight(SMALL_FONT_ID);
+    const int iconGap = 4;
+    const int timerGapFromBattery = 6;
+    const int batteryReserve = SETTINGS.statusBarBattery ? (showBatteryPercentage ? 50 : 20) : 0;
+
+    const int timerX = metrics.statusBarHorizontalMargin + orientedMarginLeft + batteryReserve + timerGapFromBattery;
+    const int iconY = textY;
+
+    renderer.drawRect(timerX, iconY, iconSize, iconSize);
+    // Clock hands
+    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize / 2, iconY + 2);
+    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 3, iconY + iconSize / 2);
+
+    const int timerTextX = timerX + iconSize + iconGap;
+    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, timerText);
+    timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timerText) + iconSize + iconGap + timerGapFromBattery;
+  }
+
   // Draw Title
   if (!title.empty()) {
     textY -= textYOffset;
@@ -809,7 +830,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
         renderer.getScreenWidth() - (metrics.statusBarHorizontalMargin * 2) - orientedMarginLeft - orientedMarginRight;
 
     const int batterySize = SETTINGS.statusBarBattery ? (showBatteryPercentage ? 50 : 20) : 0;
-    const int titleMarginLeft = batterySize + 30;
+    const int titleMarginLeft = batterySize + timerTextWidth + 30;
     const int clockReserve = clockTextWidth > 0 ? (clockTextWidth + 10) : 0;
     const int titleMarginRight = progressTextWidth + clockReserve + 30;
 
