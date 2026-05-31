@@ -689,7 +689,9 @@ uint32_t EpubReaderActivity::remainingPagesInCurrentChapter() const {
   if (!section || section->pageCount <= 0 || section->currentPage < 0 || section->currentPage >= section->pageCount) {
     return 0;
   }
-  return static_cast<uint32_t>(section->pageCount - (section->currentPage + 1));
+  // Include the current page so an "end of chapter" snooze expires only
+  // after advancing past the final page, not upon landing on it.
+  return static_cast<uint32_t>(section->pageCount - section->currentPage);
 }
 
 void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze) {
