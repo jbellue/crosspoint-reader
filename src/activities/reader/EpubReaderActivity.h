@@ -7,6 +7,7 @@
 
 #include "EpubReaderMenuActivity.h"
 #include "ProgressMapper.h"
+#include "ReaderTimerController.h"
 #include "activities/Activity.h"
 
 class EpubReaderActivity final : public Activity {
@@ -32,18 +33,7 @@ class EpubReaderActivity final : public Activity {
   bool pendingSyncSaveError = false;
   bool skipNextButtonCheck = false;  // Skip button processing for one frame after subactivity exit
   bool automaticPageTurnActive = false;
-  struct ReaderTimerState {
-    ReaderTimerMode mode = ReaderTimerMode::Off;
-    uint32_t remaining = 0;
-    uint32_t selectedValue = 0;
-    ReaderTimerMode snoozeMode = ReaderTimerMode::Time;
-    uint32_t snoozeValue = 0;
-    unsigned long lastTickMillis = 0UL;
-    bool expiryPromptPending = false;
-    int highWaterSpineIndex = -1;
-    int highWaterPage = -1;
-  };
-  ReaderTimerState readerTimer;
+  ReaderTimerController readerTimer;
   bool pendingTimerSleepRequest = false;
   bool showBookmarkMessage = false;
   bool ignoreNextConfirmRelease = false;
@@ -76,12 +66,7 @@ class EpubReaderActivity final : public Activity {
   void applyOrientation(uint8_t orientation);
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
   void pageTurn(bool isForwardTurn);
-  void applyTimerConfig(const ReaderTimerConfigResult& config);
-  void tickTimeTimer();
-  void consumeTimerStep(ReaderTimerMode mode, uint32_t amount);
-  void recordForwardTimerAdvance(int newSpineIndex, int newPage, bool consumedPageStep, bool consumedChapterStep);
   void openTimerExpiryPrompt();
-  void applySnoozeConfig(const ReaderTimerConfigResult& config);
   uint32_t remainingPagesInCurrentChapter() const;
   void openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze);
   void addBookmark();
