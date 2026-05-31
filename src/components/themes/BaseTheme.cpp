@@ -727,7 +727,8 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
                               const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
-                              const bool fillMargin, const char* timerText) const {
+                              const bool fillMargin, const char* timerText,
+                              const int statusBarHeightOverride) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -735,7 +736,8 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Progress Text
   const auto screenHeight = renderer.getScreenHeight();
-  auto textY = screenHeight - UITheme::getInstance().getStatusBarHeight() - orientedMarginBottom - paddingBottom - 4;
+  const int statusBarHeight = statusBarHeightOverride >= 0 ? statusBarHeightOverride : UITheme::getInstance().getStatusBarHeight();
+  auto textY = screenHeight - statusBarHeight - orientedMarginBottom - paddingBottom - 4;
   int progressTextWidth = 0;
 
   if (SETTINGS.statusBarBookProgressPercentage || SETTINGS.statusBarChapterPageCount) {

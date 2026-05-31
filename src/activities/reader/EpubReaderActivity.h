@@ -82,6 +82,7 @@ class EpubReaderActivity final : public Activity {
   void openTimerExpiryPrompt();
   void applySnoozeConfig(const ReaderTimerConfigResult& config);
   void addBookmark();
+  uint8_t getStatusBarHeightForCurrentState() const;
 
   // Footnote navigation
   void navigateToHref(const std::string& href, bool savePosition = false);

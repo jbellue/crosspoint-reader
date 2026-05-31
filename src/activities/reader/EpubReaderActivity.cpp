@@ -704,7 +704,7 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
   pageTurnDuration = (1UL * 60 * 1000) / PAGE_TURN_RATES[selectedPageTurnOption];
   automaticPageTurnActive = true;
 
-  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
+  const uint8_t statusBarHeight = getStatusBarHeightForCurrentState();
   // resets cached section so that space is reserved for auto page turn indicator when None or progress bar only
   if (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight()) {
     // Preserve current reading position so we can restore after reflow.
@@ -884,6 +884,15 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   requestUpdate();
 }
 
+uint8_t EpubReaderActivity::getStatusBarHeightForCurrentState() const {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const bool hasVisibleStatusBarText =
+      SETTINGS.statusBarChapterPageCount || SETTINGS.statusBarBookProgressPercentage ||
+      SETTINGS.statusBarTitle != CrossPointSettings::STATUS_BAR_TITLE::HIDE_TITLE || SETTINGS.statusBarBattery ||
+      (SETTINGS.statusBarTimerRemaining && readerTimer.mode != ReaderTimerMode::Off && readerTimer.remaining > 0);
+  return (hasVisibleStatusBarText ? metrics.statusBarVerticalMargin : 0) + UITheme::getInstance().getProgressBarHeight();
+}
+
 // TODO: Failure handling
 void EpubReaderActivity::render(RenderLock&& lock) {
   if (!epub) {
@@ -923,7 +932,7 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   orientedMarginLeft += SETTINGS.screenMargin;
   orientedMarginRight += SETTINGS.screenMargin;
 
-  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
+  const uint8_t statusBarHeight = getStatusBarHeightForCurrentState();
 
   // reserves space for automatic page turn indicator when no status bar or progress bar only
   if (automaticPageTurnActive &&
@@ -1264,13 +1273,12 @@ void EpubReaderActivity::renderStatusBar() const {
   const char* timerText = nullptr;
 
   int textYOffset = 0;
+  const uint8_t statusBarHeight = getStatusBarHeightForCurrentState();
 
   if (automaticPageTurnActive) {
     title = tr(STR_AUTO_TURN_ENABLED) + std::to_string(60 * 1000 / pageTurnDuration);
 
     // calculates textYOffset when rendering title in status bar
-    const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
-
     // offsets text if no status bar or progress bar only
     if (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight()) {
       textYOffset += UITheme::getInstance().getMetrics().statusBarVerticalMargin;
@@ -1294,7 +1302,8 @@ void EpubReaderActivity::renderStatusBar() const {
     }
   }
 
-  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, timerText);
+  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, timerText,
+                    statusBarHeight);
 }
 
 void EpubReaderActivity::navigateToHref(const std::string& hrefStr, const bool savePosition) {
