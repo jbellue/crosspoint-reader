@@ -42,6 +42,7 @@ class EpubReaderActivity final : public Activity {
     bool expiryPromptPending = false;
   };
   ReaderTimerState readerTimer;
+  bool pendingTimerSleepRequest = false;
   bool showBookmarkMessage = false;
   bool ignoreNextConfirmRelease = false;
   // Tracks whether this book is currently removed from Recent Books by the

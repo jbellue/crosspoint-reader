@@ -236,6 +236,12 @@ void EpubReaderActivity::loop() {
     return;
   }
 
+  if (pendingTimerSleepRequest) {
+    pendingTimerSleepRequest = false;
+    enterDeepSleep(false);
+    return;
+  }
+
   tickTimeTimer();
   if (readerTimer.expiryPromptPending) {
     openTimerExpiryPrompt();
@@ -804,7 +810,7 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
                              return;
                            }
 
-                           enterDeepSleep(true);
+                           pendingTimerSleepRequest = true;
                          });
 }
 

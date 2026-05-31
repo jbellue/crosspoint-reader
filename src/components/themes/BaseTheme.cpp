@@ -803,18 +803,20 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   // Draw Timer Remaining (left side with small clock icon)
   int timerTextWidth = 0;
   if (timerText && timerText[0] != '\0') {
-    const int iconSize = renderer.getTextHeight(SMALL_FONT_ID);
+    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+    const int iconSize = textHeight;  // Make icon height match text height for better alignment
     const int iconGap = 4;
     const int timerGapFromBattery = 6;
     const int batteryReserve = SETTINGS.statusBarBattery ? (showBatteryPercentage ? 50 : 20) : 0;
 
     const int timerX = metrics.statusBarHorizontalMargin + orientedMarginLeft + batteryReserve + timerGapFromBattery;
-    const int iconY = textY;
+    const int iconY = textY + (textHeight - iconSize) / 2;
 
-    renderer.drawRect(timerX, iconY, iconSize, iconSize);
+    const int clockRadius = std::max(1, iconSize / 2);
+    renderer.drawRoundedRect(timerX, iconY, iconSize, iconSize, 1, clockRadius, true);
     // Clock hands
     renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize / 2, iconY + 2);
-    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 3, iconY + iconSize / 2);
+    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 5, iconY + iconSize / 2);
 
     const int timerTextX = timerX + iconSize + iconGap;
     renderer.drawText(SMALL_FONT_ID, timerTextX, textY, timerText);
