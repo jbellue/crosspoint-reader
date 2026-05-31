@@ -32,6 +32,10 @@ struct PercentResult {
   int percent = 0;
 };
 
+struct IntervalResult {
+  uint32_t value = 0;
+};
+
 struct PageResult {
   uint32_t page = 0;
 };
@@ -67,9 +71,9 @@ struct ReaderTimerConfigResult {
   uint32_t value = 0;  // seconds for time mode, count for page/chapter modes
 };
 
-using ResultVariant = std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult,
-                                   PageResult, ProgressChangeResult, NetworkModeResult, FootnoteResult, FilePathResult,
-                                   ReaderTimerConfigResult>;
+using ResultVariant =
+    std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult, IntervalResult,
+                 PageResult, ProgressChangeResult, NetworkModeResult, FootnoteResult, FilePathResult, ReaderTimerConfigResult>;
 
 struct ActivityResult {
   bool isCancelled = false;
