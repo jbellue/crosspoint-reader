@@ -726,9 +726,7 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 }
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
-                              const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
-                              const bool fillMargin, const char* timerText,
-                              const int statusBarHeightOverride) const {
+                              const int pageCount, std::string title, const StatusBarRenderOptions& options) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -736,8 +734,9 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Progress Text
   const auto screenHeight = renderer.getScreenHeight();
-  const int statusBarHeight = statusBarHeightOverride >= 0 ? statusBarHeightOverride : UITheme::getInstance().getStatusBarHeight();
-  auto textY = screenHeight - statusBarHeight - orientedMarginBottom - paddingBottom - 4;
+  const int statusBarHeight =
+      options.statusBarHeightOverride >= 0 ? options.statusBarHeightOverride : UITheme::getInstance().getStatusBarHeight();
+  auto textY = screenHeight - statusBarHeight - orientedMarginBottom - options.paddingBottom - 4;
   int progressTextWidth = 0;
 
   if (SETTINGS.statusBarBookProgressPercentage || SETTINGS.statusBarChapterPageCount) {
@@ -761,11 +760,11 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Progress Bar
   if (SETTINGS.statusBarProgressBar != CrossPointSettings::STATUS_BAR_PROGRESS_BAR::HIDE_PROGRESS) {
-    const int barMarginLeft = fillMargin ? 0 : orientedMarginLeft;
-    const int barMarginRight = fillMargin ? 0 : orientedMarginRight;
+    const int barMarginLeft = options.fillMargin ? 0 : orientedMarginLeft;
+    const int barMarginRight = options.fillMargin ? 0 : orientedMarginRight;
     const int progressBarMaxWidth = renderer.getScreenWidth() - barMarginLeft - barMarginRight;
     const int progressBarY = renderer.getScreenHeight() - orientedMarginBottom -
-                             ((SETTINGS.statusBarProgressBarThickness + 1) * 2) - paddingBottom;
+                             ((SETTINGS.statusBarProgressBarThickness + 1) * 2) - options.paddingBottom;
     size_t progress;
     if (SETTINGS.statusBarProgressBar == CrossPointSettings::STATUS_BAR_PROGRESS_BAR::BOOK_PROGRESS) {
       progress = static_cast<size_t>(bookProgress);
@@ -775,7 +774,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     }
     const int barWidth = progressBarMaxWidth * progress / 100;
     const int barHeight =
-        ((SETTINGS.statusBarProgressBarThickness + 1) * 2) + (fillMargin ? orientedMarginBottom - 1 : 0);
+        ((SETTINGS.statusBarProgressBarThickness + 1) * 2) + (options.fillMargin ? orientedMarginBottom - 1 : 0);
     renderer.fillRect(barMarginLeft, progressBarY, barWidth, barHeight, true);
   }
 
@@ -804,7 +803,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Timer Remaining (left side with small clock icon)
   int timerTextWidth = 0;
-  if (timerText && timerText[0] != '\0') {
+  if (options.timerText && options.timerText[0] != '\0') {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
     const int iconSize = std::max(8, textHeight - 2);
     const int iconGap = 4;
@@ -821,13 +820,13 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 5, iconY + iconSize / 2);
 
     const int timerTextX = timerX + iconSize + iconGap;
-    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, timerText);
-    timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timerText) + iconSize + iconGap + timerGapFromBattery;
+    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, options.timerText);
+    timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, options.timerText) + iconSize + iconGap + timerGapFromBattery;
   }
 
   // Draw Title
   if (!title.empty()) {
-    textY -= textYOffset;
+    textY -= options.textYOffset;
     // Centered chapter title text
     // Page width minus existing content with 30px padding on each side
     const int rendererableScreenWidth =

@@ -749,6 +749,35 @@ void EpubReaderActivity::applySnoozeConfig(const ReaderTimerConfigResult& config
   applyTimerConfig(config);
 }
 
+uint32_t EpubReaderActivity::remainingPagesInCurrentChapter() const {
+  if (!section || section->pageCount <= 0 || section->currentPage < 0 || section->currentPage >= section->pageCount) {
+    return 0;
+  }
+  return static_cast<uint32_t>(section->pageCount - (section->currentPage + 1));
+}
+
+void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze) {
+  const uint32_t finishChapterPagesLeft = remainingPagesInCurrentChapter();
+  char finishChapterLabel[96] = {0};
+  if (finishChapterPagesLeft > 0) {
+    snprintf(finishChapterLabel, sizeof(finishChapterLabel), tr(STR_SNOOZE_END_CHAPTER_FORMAT),
+             static_cast<int>(finishChapterPagesLeft));
+  }
+  const char* customLabel = finishChapterPagesLeft > 0 ? finishChapterLabel : nullptr;
+
+  startActivityForResult(
+      std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, initialSnooze.mode, initialSnooze.value,
+                                                StrId::STR_SNOOZE, false, ReaderTimerMode::Pages,
+                                                finishChapterPagesLeft, customLabel),
+      [this, initialSnooze](const ActivityResult& snoozeResult) {
+        if (snoozeResult.isCancelled) {
+          applySnoozeConfig(initialSnooze);
+          return;
+        }
+        applySnoozeConfig(std::get<ReaderTimerConfigResult>(snoozeResult.data));
+      });
+}
+
 void EpubReaderActivity::tickTimeTimer() {
   if (readerTimer.mode != ReaderTimerMode::Time || readerTimer.remaining == 0 || readerTimer.expiryPromptPending) {
     return;
@@ -796,41 +825,13 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
   readerTimer.expiryPromptPending = false;
   startActivityForResult(std::make_unique<EpubReaderTimerPromptActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
-                           if (result.isCancelled) {
-                             const ReaderTimerConfigResult initialSnooze{readerTimer.snoozeMode, readerTimer.snoozeValue};
-
-                             uint32_t finishChapterPagesLeft = 0;
-                             std::string finishChapterLabel;
-                             if (section && section->pageCount > 0 && section->currentPage >= 0 &&
-                                 section->currentPage < section->pageCount) {
-                               finishChapterPagesLeft =
-                                   static_cast<uint32_t>(section->pageCount - (section->currentPage + 1));
-                             }
-
-                             if (finishChapterPagesLeft > 0) {
-                               char buf[96];
-                               snprintf(buf, sizeof(buf), tr(STR_SNOOZE_END_CHAPTER_FORMAT),
-                                        static_cast<int>(finishChapterPagesLeft));
-                               finishChapterLabel = buf;
-                             }
-
-                             startActivityForResult(
-                                 std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, initialSnooze.mode,
-                                                                            initialSnooze.value, StrId::STR_SNOOZE,
-                                                                            false, ReaderTimerMode::Pages,
-                                                                            finishChapterPagesLeft,
-                                                                            finishChapterLabel),
-                                 [this, initialSnooze](const ActivityResult& snoozeResult) {
-                                   if (snoozeResult.isCancelled) {
-                                     applySnoozeConfig(initialSnooze);
-                                     return;
-                                   }
-                                   applySnoozeConfig(std::get<ReaderTimerConfigResult>(snoozeResult.data));
-                                 });
+                           if (!result.isCancelled) {
+                             pendingTimerSleepRequest = true;
                              return;
                            }
 
-                           pendingTimerSleepRequest = true;
+                           const ReaderTimerConfigResult initialSnooze{readerTimer.snoozeMode, readerTimer.snoozeValue};
+                           openSnoozeSelection(initialSnooze);
                          });
 }
 
@@ -900,11 +901,12 @@ void EpubReaderActivity::recordForwardTimerAdvance(const int newSpineIndex, cons
 
 uint8_t EpubReaderActivity::getStatusBarHeightForCurrentState() const {
   const auto& metrics = UITheme::getInstance().getMetrics();
-  const bool hasVisibleStatusBarText =
-      SETTINGS.statusBarChapterPageCount || SETTINGS.statusBarBookProgressPercentage ||
-      SETTINGS.statusBarTitle != CrossPointSettings::STATUS_BAR_TITLE::HIDE_TITLE || SETTINGS.statusBarBattery ||
-      (SETTINGS.statusBarTimerRemaining && readerTimer.mode != ReaderTimerMode::Off && readerTimer.remaining > 0);
-  return (hasVisibleStatusBarText ? metrics.statusBarVerticalMargin : 0) + UITheme::getInstance().getProgressBarHeight();
+  const bool timerTextVisible =
+      SETTINGS.statusBarTimerRemaining && readerTimer.mode != ReaderTimerMode::Off && readerTimer.remaining > 0;
+  const bool showStatusBar = SETTINGS.statusBarChapterPageCount || SETTINGS.statusBarBookProgressPercentage ||
+                             SETTINGS.statusBarTitle != CrossPointSettings::STATUS_BAR_TITLE::HIDE_TITLE ||
+                             SETTINGS.statusBarBattery || timerTextVisible;
+  return (showStatusBar ? metrics.statusBarVerticalMargin : 0) + UITheme::getInstance().getProgressBarHeight();
 }
 
 // TODO: Failure handling
@@ -1316,8 +1318,11 @@ void EpubReaderActivity::renderStatusBar() const {
     }
   }
 
-  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, timerText,
-                    statusBarHeight);
+  StatusBarRenderOptions statusBarOptions;
+  statusBarOptions.textYOffset = textYOffset;
+  statusBarOptions.timerText = timerText;
+  statusBarOptions.statusBarHeightOverride = statusBarHeight;
+  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, statusBarOptions);
 }
 
 void EpubReaderActivity::navigateToHref(const std::string& hrefStr, const bool savePosition) {

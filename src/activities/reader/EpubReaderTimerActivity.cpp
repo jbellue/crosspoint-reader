@@ -3,6 +3,8 @@
 #include <GfxRenderer.h>
 #include <I18n.h>
 
+#include <cstring>
+
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 
@@ -10,7 +12,7 @@ EpubReaderTimerActivity::EpubReaderTimerActivity(GfxRenderer& renderer, MappedIn
                                                  const ReaderTimerMode currentMode, const uint32_t currentValue,
                                                  const StrId screenTitleId, const bool includeOff,
                                                  const ReaderTimerMode customMode, const uint32_t customValue,
-                                                 const std::string& customLabel)
+                                                 const char* customLabel)
     : Activity("EpubReaderTimer", renderer, mappedInput), titleId(screenTitleId) {
   constexpr std::array<TimerOption, 13> timerPresets = {{
       {ReaderTimerMode::Time, 10, StrId::STR_SEC_10},
@@ -39,8 +41,10 @@ EpubReaderTimerActivity::EpubReaderTimerActivity(GfxRenderer& renderer, MappedIn
     options[optionCount++] = preset;
   }
 
-  if (!customLabel.empty() && customMode != ReaderTimerMode::Off && customValue > 0 && optionCount < MAX_OPTIONS) {
-    customOptionLabel = customLabel;
+  if (customLabel && customLabel[0] != '\0' && customMode != ReaderTimerMode::Off && customValue > 0 &&
+      optionCount < MAX_OPTIONS) {
+    strncpy(customOptionLabel, customLabel, sizeof(customOptionLabel) - 1);
+    customOptionLabel[sizeof(customOptionLabel) - 1] = '\0';
     customOptionIndex = optionCount;
     options[optionCount++] = {customMode, customValue, StrId::STR_TIMER};
   }
@@ -105,7 +109,7 @@ void EpubReaderTimerActivity::render(RenderLock&&) {
       renderer, Rect{screen.x, contentTop, screen.width, contentHeight}, optionCount, selectedIndex,
       [this](const int index) {
         if (index == customOptionIndex) {
-          return customOptionLabel;
+          return std::string(customOptionLabel);
         }
         return std::string(I18N.get(options[index].labelId));
       },
