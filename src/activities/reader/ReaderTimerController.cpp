@@ -109,8 +109,27 @@ const char* ReaderTimerController::getSnoozeCustomLabel(const uint32_t finishCha
     return nullptr;
   }
 
-  const int n = snprintf(out, outSize, tr(STR_SNOOZE_END_CHAPTER_FORMAT), static_cast<int>(finishChapterPagesLeft));
+  const char* baseLabel = tr(STR_SNOOZE_END_CHAPTER);
+  int n = snprintf(out, outSize, "%s", baseLabel);
   if (n < 0 || static_cast<size_t>(n) >= outSize) {
+    out[0] = '\0';
+    return nullptr;
+  }
+
+  if (finishChapterPagesLeft <= 1) {
+    return out;
+  }
+
+  size_t used = static_cast<size_t>(n);
+  if (used + 1 >= outSize) {
+    out[0] = '\0';
+    return nullptr;
+  }
+  out[used++] = ' ';
+  out[used] = '\0';
+
+  n = snprintf(out + used, outSize - used, tr(STR_SNOOZE_PAGES_LEFT_FORMAT), static_cast<int>(finishChapterPagesLeft));
+  if (n < 0 || static_cast<size_t>(n) >= (outSize - used)) {
     out[0] = '\0';
     return nullptr;
   }
@@ -138,16 +157,16 @@ bool ReaderTimerController::formatRemaining(char* out, const size_t outSize) con
   switch (state.mode) {
     case ReaderTimerMode::Time:
       if (state.remaining <= 60) {
-        n = snprintf(out, outSize, "<1m");
+        n = snprintf(out, outSize, "%s", tr(STR_TIMER_LESS_THAN_ONE_MIN));
       } else {
-        n = snprintf(out, outSize, "%lum", static_cast<unsigned long>(state.remaining / 60));
+        n = snprintf(out, outSize, tr(STR_TIMER_MINUTES_FORMAT), static_cast<unsigned long>(state.remaining / 60));
       }
       break;
     case ReaderTimerMode::Pages:
-      n = snprintf(out, outSize, "%lup", static_cast<unsigned long>(state.remaining));
+      n = snprintf(out, outSize, tr(STR_TIMER_PAGES_SHORT_FORMAT), static_cast<unsigned long>(state.remaining));
       break;
     case ReaderTimerMode::Chapters:
-      n = snprintf(out, outSize, "%luc", static_cast<unsigned long>(state.remaining));
+      n = snprintf(out, outSize, tr(STR_TIMER_CHAPTERS_SHORT_FORMAT), static_cast<unsigned long>(state.remaining));
       break;
     case ReaderTimerMode::Off:
     default:

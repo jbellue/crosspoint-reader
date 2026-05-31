@@ -258,7 +258,7 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
     title = tr(STR_EXAMPLE_CHAPTER);
   }
 
-  const char* timerPreview = SETTINGS.statusBarTimerRemaining ? "<1m" : nullptr;
+  const char* timerPreview = SETTINGS.statusBarTimerRemaining ? tr(STR_TIMER_LESS_THAN_ONE_MIN) : nullptr;
   StatusBarRenderOptions statusBarOptions;
   statusBarOptions.paddingBottom = verticalPreviewPadding;
   statusBarOptions.fillMargin = false;
