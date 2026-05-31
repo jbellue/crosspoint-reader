@@ -397,12 +397,16 @@ void EpubReaderActivity::loop() {
   }
 
   if (longPress && SETTINGS.longPressButtonBehavior == SETTINGS.CHAPTER_SKIP) {
+    const int targetSpineIndex = nextTriggered ? currentSpineIndex + 1 : currentSpineIndex - 1;
     // We don't want to delete the section mid-render, so grab the semaphore
     {
       RenderLock lock(*this);
       nextPageNumber = 0;
-      currentSpineIndex = nextTriggered ? currentSpineIndex + 1 : currentSpineIndex - 1;
+      currentSpineIndex = targetSpineIndex;
       section.reset();
+    }
+    if (nextTriggered) {
+      recordForwardTimerAdvance(targetSpineIndex, 0, true, true);
     }
     requestUpdate();
     return;
@@ -827,12 +831,13 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
 void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   bool consumedPageStep = false;
   bool consumedChapterStep = false;
-  bool advancedBeyondHighWater = false;
+  int newPage = nextPageNumber;
 
   if (isForwardTurn) {
     if (section->currentPage < section->pageCount - 1) {
       section->currentPage++;
       consumedPageStep = true;
+      newPage = section->currentPage;
     } else {
       // We don't want to delete the section mid-render, so grab the semaphore
       {
@@ -843,6 +848,7 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
       }
       consumedPageStep = true;
       consumedChapterStep = true;
+      newPage = 0;
     }
   } else {
     if (section->currentPage > 0) {
@@ -859,29 +865,31 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
     }
   }
 
-  if (consumedPageStep) {
-    int newPage = nextPageNumber;
-    if (section) {
-      newPage = section->currentPage;
-    }
-
-    advancedBeyondHighWater =
-        isPositionAfter(currentSpineIndex, newPage, readerTimer.highWaterSpineIndex, readerTimer.highWaterPage);
-    if (advancedBeyondHighWater) {
-      readerTimer.highWaterSpineIndex = currentSpineIndex;
-      readerTimer.highWaterPage = newPage;
-    }
-  }
-
-  if (consumedPageStep && advancedBeyondHighWater) {
-    consumeTimerStep(ReaderTimerMode::Pages, 1);
-  }
-  if (consumedChapterStep && advancedBeyondHighWater) {
-    consumeTimerStep(ReaderTimerMode::Chapters, 1);
-  }
+  recordForwardTimerAdvance(currentSpineIndex, newPage, consumedPageStep, consumedChapterStep);
 
   lastPageTurnTime = millis();
   requestUpdate();
+}
+
+void EpubReaderActivity::recordForwardTimerAdvance(const int newSpineIndex, const int newPage,
+                                                   const bool consumedPageStep, const bool consumedChapterStep) {
+  if (!consumedPageStep && !consumedChapterStep) {
+    return;
+  }
+
+  if (!isPositionAfter(newSpineIndex, newPage, readerTimer.highWaterSpineIndex, readerTimer.highWaterPage)) {
+    return;
+  }
+
+  readerTimer.highWaterSpineIndex = newSpineIndex;
+  readerTimer.highWaterPage = newPage;
+
+  if (consumedPageStep) {
+    consumeTimerStep(ReaderTimerMode::Pages, 1);
+  }
+  if (consumedChapterStep) {
+    consumeTimerStep(ReaderTimerMode::Chapters, 1);
+  }
 }
 
 uint8_t EpubReaderActivity::getStatusBarHeightForCurrentState() const {

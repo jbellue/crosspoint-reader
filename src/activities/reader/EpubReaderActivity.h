@@ -79,6 +79,7 @@ class EpubReaderActivity final : public Activity {
   void applyTimerConfig(const ReaderTimerConfigResult& config);
   void tickTimeTimer();
   void consumeTimerStep(ReaderTimerMode mode, uint32_t amount);
+  void recordForwardTimerAdvance(int newSpineIndex, int newPage, bool consumedPageStep, bool consumedChapterStep);
   void openTimerExpiryPrompt();
   void applySnoozeConfig(const ReaderTimerConfigResult& config);
   void addBookmark();
