@@ -88,6 +88,13 @@ int clampPercent(int percent) {
   return percent;
 }
 
+bool isPositionAfter(const int spineA, const int pageA, const int spineB, const int pageB) {
+  if (spineA != spineB) {
+    return spineA > spineB;
+  }
+  return pageA > pageB;
+}
+
 // SD card folder finished books are moved into. Single source of truth for the path.
 // constexpr ⇒ lives in flash .rodata, no DRAM cost.
 constexpr char READ_FOLDER[] = "/read";
@@ -717,6 +724,8 @@ void EpubReaderActivity::applyTimerConfig(const ReaderTimerConfigResult& config)
   readerTimer.remaining = config.value;
   readerTimer.lastTickMillis = millis();
   readerTimer.expiryPromptPending = false;
+  readerTimer.highWaterSpineIndex = currentSpineIndex;
+  readerTimer.highWaterPage = section ? section->currentPage : nextPageNumber;
   requestUpdate();
 }
 
@@ -818,6 +827,7 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
 void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   bool consumedPageStep = false;
   bool consumedChapterStep = false;
+  bool advancedBeyondHighWater = false;
 
   if (isForwardTurn) {
     if (section->currentPage < section->pageCount - 1) {
@@ -850,9 +860,23 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   }
 
   if (consumedPageStep) {
+    int newPage = nextPageNumber;
+    if (section) {
+      newPage = section->currentPage;
+    }
+
+    advancedBeyondHighWater =
+        isPositionAfter(currentSpineIndex, newPage, readerTimer.highWaterSpineIndex, readerTimer.highWaterPage);
+    if (advancedBeyondHighWater) {
+      readerTimer.highWaterSpineIndex = currentSpineIndex;
+      readerTimer.highWaterPage = newPage;
+    }
+  }
+
+  if (consumedPageStep && advancedBeyondHighWater) {
     consumeTimerStep(ReaderTimerMode::Pages, 1);
   }
-  if (consumedChapterStep) {
+  if (consumedChapterStep && advancedBeyondHighWater) {
     consumeTimerStep(ReaderTimerMode::Chapters, 1);
   }
 

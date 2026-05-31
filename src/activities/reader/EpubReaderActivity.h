@@ -40,6 +40,8 @@ class EpubReaderActivity final : public Activity {
     uint32_t snoozeValue = 0;
     unsigned long lastTickMillis = 0UL;
     bool expiryPromptPending = false;
+    int highWaterSpineIndex = -1;
+    int highWaterPage = -1;
   };
   ReaderTimerState readerTimer;
   bool pendingTimerSleepRequest = false;
