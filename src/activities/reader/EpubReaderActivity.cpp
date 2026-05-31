@@ -52,30 +52,36 @@ bool formatReaderTimerRemaining(const ReaderTimerMode mode, const uint32_t remai
   if (!out || outSize == 0) {
     return false;
   }
-  out[0] = '\0';
 
   if (mode == ReaderTimerMode::Off || remaining == 0) {
     return false;
   }
 
+  int n = 0;
   switch (mode) {
     case ReaderTimerMode::Time:
       if (remaining <= 60) {
-        snprintf(out, outSize, "<1m");
+        n = snprintf(out, outSize, "<1m");
       } else {
-        snprintf(out, outSize, "%lum", static_cast<unsigned long>(remaining / 60));
+        n = snprintf(out, outSize, "%lum", static_cast<unsigned long>(remaining / 60));
       }
-      return true;
+      break;
     case ReaderTimerMode::Pages:
-      snprintf(out, outSize, "%lup", static_cast<unsigned long>(remaining));
-      return true;
+      n = snprintf(out, outSize, "%lup", static_cast<unsigned long>(remaining));
+      break;
     case ReaderTimerMode::Chapters:
-      snprintf(out, outSize, "%luc", static_cast<unsigned long>(remaining));
-      return true;
+      n = snprintf(out, outSize, "%luc", static_cast<unsigned long>(remaining));
+      break;
     case ReaderTimerMode::Off:
     default:
-      return false;
+      n = 0;
   }
+
+  bool success = (n >= 0 && static_cast<size_t>(n) < outSize);
+  if (!success) {
+    out[0] = '\0';
+  }
+  return success;
 }
 
 int clampPercent(int percent) {
