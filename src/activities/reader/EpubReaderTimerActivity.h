@@ -1,8 +1,8 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include <I18n.h>
 
@@ -27,13 +27,14 @@ class EpubReaderTimerActivity final : public Activity {
     ReaderTimerMode mode;
     uint32_t value;
     StrId labelId;
-    std::string customLabel;
   };
 
-  static std::vector<TimerOption> buildOptions(bool includeOff, ReaderTimerMode customMode, uint32_t customValue,
-                                               const std::string& customLabel);
+  static constexpr int MAX_OPTIONS = 15;
 
-  const std::vector<TimerOption> options;
+  std::array<TimerOption, MAX_OPTIONS> options = {};
+  int optionCount = 0;
+  int customOptionIndex = -1;
+  std::string customOptionLabel;
   StrId titleId = StrId::STR_TIMER;
   int selectedIndex = 0;
   ButtonNavigator buttonNavigator;

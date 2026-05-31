@@ -784,7 +784,8 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
                              std::string finishChapterLabel;
                              if (section && section->pageCount > 0 && section->currentPage >= 0 &&
                                  section->currentPage < section->pageCount) {
-                               finishChapterPagesLeft = static_cast<uint32_t>(section->pageCount - section->currentPage);
+                               finishChapterPagesLeft =
+                                   static_cast<uint32_t>(section->pageCount - (section->currentPage + 1));
                              }
 
                              if (finishChapterPagesLeft > 0) {

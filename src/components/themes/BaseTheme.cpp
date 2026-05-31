@@ -804,7 +804,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   int timerTextWidth = 0;
   if (timerText && timerText[0] != '\0') {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
-    const int iconSize = textHeight;  // Make icon height match text height for better alignment
+    const int iconSize = std::max(8, textHeight - 2);
     const int iconGap = 4;
     const int timerGapFromBattery = 6;
     const int batteryReserve = SETTINGS.statusBarBattery ? (showBatteryPercentage ? 50 : 20) : 0;
