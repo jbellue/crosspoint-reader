@@ -695,11 +695,8 @@ uint32_t EpubReaderActivity::remainingPagesInCurrentChapter() const {
 void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze) {
   const uint32_t finishChapterPagesLeft = remainingPagesInCurrentChapter();
   char finishChapterLabel[96] = {0};
-  if (finishChapterPagesLeft > 0) {
-    snprintf(finishChapterLabel, sizeof(finishChapterLabel), tr(STR_SNOOZE_END_CHAPTER_FORMAT),
-             static_cast<int>(finishChapterPagesLeft));
-  }
-  const char* customLabel = finishChapterPagesLeft > 0 ? finishChapterLabel : nullptr;
+  const char* customLabel =
+      readerTimer.getSnoozeCustomLabel(finishChapterPagesLeft, finishChapterLabel, sizeof(finishChapterLabel));
 
   startActivityForResult(
       std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, initialSnooze.mode, initialSnooze.value,

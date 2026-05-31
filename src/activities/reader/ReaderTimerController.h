@@ -21,6 +21,7 @@ class ReaderTimerController {
   ReaderTimerConfigResult getSnoozeConfig() const { return {state.snoozeMode, state.snoozeValue}; }
   ReaderTimerMode getMode() const { return state.mode; }
   uint32_t getSelectedValue() const { return state.selectedValue; }
+  const char* getSnoozeCustomLabel(uint32_t finishChapterPagesLeft, char* out, size_t outSize) const;
 
   bool formatRemaining(char* out, size_t outSize) const;
   uint8_t getStatusBarHeightForCurrentState() const;

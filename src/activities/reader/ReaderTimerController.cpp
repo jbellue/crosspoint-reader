@@ -1,6 +1,7 @@
 #include "ReaderTimerController.h"
 
 #include <CrossPointSettings.h>
+#include <I18n.h>
 
 #include <cstdio>
 
@@ -100,6 +101,21 @@ void ReaderTimerController::recordForwardAdvance(const int newSpineIndex, const 
   if (consumedChapterStep) {
     consumeTimerStep(ReaderTimerMode::Chapters, 1);
   }
+}
+
+const char* ReaderTimerController::getSnoozeCustomLabel(const uint32_t finishChapterPagesLeft, char* out,
+                                                        const size_t outSize) const {
+  if (!out || outSize == 0 || finishChapterPagesLeft == 0) {
+    return nullptr;
+  }
+
+  const int n = snprintf(out, outSize, tr(STR_SNOOZE_END_CHAPTER_FORMAT), static_cast<int>(finishChapterPagesLeft));
+  if (n < 0 || static_cast<size_t>(n) >= outSize) {
+    out[0] = '\0';
+    return nullptr;
+  }
+
+  return out;
 }
 
 bool ReaderTimerController::isPositionAfter(const int spineA, const int pageA, const int spineB, const int pageB) {
