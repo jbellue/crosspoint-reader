@@ -156,7 +156,7 @@ bool ReaderTimerController::formatRemaining(char* out, const size_t outSize) con
   int n = 0;
   switch (state.mode) {
     case ReaderTimerMode::Time:
-      if (state.remaining <= 60) {
+      if (state.remaining < 60) {
         n = snprintf(out, outSize, "%s", tr(STR_TIMER_LESS_THAN_ONE_MIN));
       } else {
         n = snprintf(out, outSize, tr(STR_TIMER_MINUTES_FORMAT), static_cast<unsigned long>(state.remaining / 60));
