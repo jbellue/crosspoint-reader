@@ -24,7 +24,6 @@ class ReaderTimerController {
   const char* getSnoozeCustomLabel(uint32_t finishChapterPagesLeft, char* out, size_t outSize) const;
 
   bool formatRemaining(char* out, size_t outSize) const;
-  uint8_t getStatusBarHeightForCurrentState() const;
 
  private:
   struct State {

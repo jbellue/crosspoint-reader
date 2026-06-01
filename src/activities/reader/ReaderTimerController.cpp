@@ -180,12 +180,3 @@ bool ReaderTimerController::formatRemaining(char* out, const size_t outSize) con
   return success;
 }
 
-uint8_t ReaderTimerController::getStatusBarHeightForCurrentState() const {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const bool timerTextVisible =
-      SETTINGS.statusBarTimerRemaining && state.mode != ReaderTimerMode::Off && state.remaining > 0;
-  const bool showStatusBar = SETTINGS.statusBarChapterPageCount || SETTINGS.statusBarBookProgressPercentage ||
-                             SETTINGS.statusBarTitle != CrossPointSettings::STATUS_BAR_TITLE::HIDE_TITLE ||
-                             SETTINGS.statusBarBattery || timerTextVisible;
-  return (showStatusBar ? metrics.statusBarVerticalMargin : 0) + UITheme::getInstance().getProgressBarHeight();
-}

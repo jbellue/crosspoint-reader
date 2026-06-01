@@ -734,9 +734,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Progress Text
   const auto screenHeight = renderer.getScreenHeight();
-  const int statusBarHeight =
-      options.statusBarHeightOverride >= 0 ? options.statusBarHeightOverride : UITheme::getInstance().getStatusBarHeight();
-  auto textY = screenHeight - statusBarHeight - orientedMarginBottom - options.paddingBottom - 4;
+  auto textY = screenHeight - UITheme::getInstance().getStatusBarHeight() - orientedMarginBottom - options.paddingBottom - 4;
   int progressTextWidth = 0;
 
   if (SETTINGS.statusBarBookProgressPercentage || SETTINGS.statusBarChapterPageCount) {

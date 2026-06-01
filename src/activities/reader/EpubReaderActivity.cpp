@@ -671,7 +671,7 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
   pageTurnDuration = (1UL * 60 * 1000) / PAGE_TURN_RATES[selectedPageTurnOption];
   automaticPageTurnActive = true;
 
-  const uint8_t statusBarHeight = getStatusBarHeightForCurrentState();
+  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
   // resets cached section so that space is reserved for auto page turn indicator when None or progress bar only
   if (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight()) {
     // Preserve current reading position so we can restore after reflow.
@@ -773,10 +773,6 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   requestUpdate();
 }
 
-uint8_t EpubReaderActivity::getStatusBarHeightForCurrentState() const {
-  return readerTimer.getStatusBarHeightForCurrentState();
-}
-
 // TODO: Failure handling
 void EpubReaderActivity::render(RenderLock&& lock) {
   if (!epub) {
@@ -816,7 +812,7 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   orientedMarginLeft += SETTINGS.screenMargin;
   orientedMarginRight += SETTINGS.screenMargin;
 
-  const uint8_t statusBarHeight = getStatusBarHeightForCurrentState();
+  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
 
   // reserves space for automatic page turn indicator when no status bar or progress bar only
   if (automaticPageTurnActive &&
@@ -1163,7 +1159,7 @@ void EpubReaderActivity::renderStatusBar() const {
   const char* timerText = nullptr;
 
   int textYOffset = 0;
-  const uint8_t statusBarHeight = getStatusBarHeightForCurrentState();
+  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
 
   if (automaticPageTurnActive) {
     title = tr(STR_AUTO_TURN_ENABLED) + std::to_string(60 * 1000 / pageTurnDuration);
@@ -1195,7 +1191,6 @@ void EpubReaderActivity::renderStatusBar() const {
   StatusBarRenderOptions statusBarOptions;
   statusBarOptions.textYOffset = textYOffset;
   statusBarOptions.timerText = timerText;
-  statusBarOptions.statusBarHeightOverride = statusBarHeight;
   GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, statusBarOptions);
 }
 

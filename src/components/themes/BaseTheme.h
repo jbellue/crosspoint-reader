@@ -106,7 +106,6 @@ struct StatusBarRenderOptions {
   int textYOffset = 0;
   bool fillMargin = true;
   const char* timerText = nullptr;
-  int statusBarHeightOverride = -1;
 };
 
 // Default theme implementation (Classic Theme)
