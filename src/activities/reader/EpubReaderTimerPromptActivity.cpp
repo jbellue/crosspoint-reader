@@ -1,6 +1,5 @@
 #include "EpubReaderTimerPromptActivity.h"
 
-#include <HalDisplay.h>
 #include <HalGPIO.h>
 #include <I18n.h>
 
@@ -35,10 +34,8 @@ void EpubReaderTimerPromptActivity::loop() {
 }
 
 void EpubReaderTimerPromptActivity::render(RenderLock&&) {
-  GUI.drawPopup(renderer, safeHeading.c_str());
-
   const auto labels = mappedInput.mapLabels(tr(STR_SNOOZE), tr(STR_SLEEP), "", "");
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
-  renderer.displayBuffer(HalDisplay::RefreshMode::HALF_REFRESH);
+  GUI.drawPopup(renderer, safeHeading.c_str());
 }
