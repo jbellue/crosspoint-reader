@@ -8,6 +8,7 @@
 #include "BookmarkEntry.h"
 #include "EpubReaderMenuActivity.h"
 #include "ProgressMapper.h"
+#include "ReaderTimerController.h"
 #include "activities/Activity.h"
 
 class EpubReaderActivity final : public Activity {
@@ -33,6 +34,8 @@ class EpubReaderActivity final : public Activity {
   bool pendingSyncSaveError = false;
   bool skipNextButtonCheck = false;  // Skip button processing for one frame after subactivity exit
   bool automaticPageTurnActive = false;
+  ReaderTimerController readerTimer;
+  bool pendingTimerSleepRequest = false;
   bool showBookmarkMessage = false;
   bool ignoreNextConfirmRelease = false;
   bool currentPageBookmarked = false;
@@ -71,6 +74,9 @@ class EpubReaderActivity final : public Activity {
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
   void pageTurn(bool isForwardTurn);
   void loadCachedBookmarks();
+  void openTimerExpiryPrompt();
+  uint32_t remainingPagesInCurrentChapter() const;
+  void openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze);
   void addBookmark();
   void updateBookmarkFlag();
 

@@ -748,8 +748,7 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 }
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
-                              const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
-                              const bool fillMargin, const bool isPageBookmarked) const {
+                              const int pageCount, std::string title, const StatusBarRenderOptions& options) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -758,7 +757,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Progress Text
   const auto screenHeight = renderer.getScreenHeight();
-  auto textY = screenHeight - UITheme::getInstance().getStatusBarHeight() - orientedMarginBottom - paddingBottom - 4;
+  auto textY = screenHeight - UITheme::getInstance().getStatusBarHeight() - orientedMarginBottom - options.paddingBottom - 4;
 
   const int leftClusterX = metrics.statusBarHorizontalMargin + orientedMarginLeft + 1;
   const int rightClusterX = renderer.getScreenWidth() - metrics.statusBarHorizontalMargin - orientedMarginRight;
@@ -785,11 +784,12 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Progress Bar
   if (SETTINGS.statusBarProgressBar != CrossPointSettings::STATUS_BAR_PROGRESS_BAR::HIDE_PROGRESS) {
-    const int barMarginLeft = fillMargin ? 0 : orientedMarginLeft;
-    const int barMarginRight = fillMargin ? 0 : orientedMarginRight;
+    const int barMarginLeft = options.fillMargin ? 0 : orientedMarginLeft;
+    const int barMarginRight = options.fillMargin ? 0 : orientedMarginRight;
     const int progressBarMaxWidth = renderer.getScreenWidth() - barMarginLeft - barMarginRight;
-    const int progressBarY = renderer.getScreenHeight() - orientedMarginBottom -
-                             ((SETTINGS.statusBarProgressBarThickness + 1) * 2) - paddingBottom + (fillMargin ? 1 : 0);
+    const int progressBarY =
+        screenHeight - orientedMarginBottom - ((SETTINGS.statusBarProgressBarThickness + 1) * 2) -
+        options.paddingBottom + (options.fillMargin ? 1 : 0);
     size_t progress;
     if (SETTINGS.statusBarProgressBar == CrossPointSettings::STATUS_BAR_PROGRESS_BAR::BOOK_PROGRESS) {
       progress = static_cast<size_t>(bookProgress);
@@ -799,8 +799,15 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     }
     const int barWidth = progressBarMaxWidth * progress / 100;
     const int barHeight =
-        ((SETTINGS.statusBarProgressBarThickness + 1) * 2) + (fillMargin ? orientedMarginBottom - 1 : 0);
+        ((SETTINGS.statusBarProgressBarThickness + 1) * 2) + (options.fillMargin ? orientedMarginBottom - 1 : 0);
     renderer.fillRect(barMarginLeft, progressBarY, barWidth, barHeight, true);
+  }
+
+  // Draw Bookmark
+  if (showStatusBarTextLane && options.isPageBookmarked) {
+    const int bookmarkY = textY + 5;
+    drawBookmarkStatusIcon(renderer, leftClusterX, bookmarkY);
+    leftClusterWidth += bookmarkStatusIconWidth + bookmarkStatusIconGap;
   }
 
   // Draw Battery
@@ -841,18 +848,34 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     }
   }
 
-  // Draw Bookmark
-  if (showStatusBarTextLane && isPageBookmarked) {
-    const int bookmarkGap = leftClusterWidth > 0 ? bookmarkStatusIconGap : 0;
-    const int bookmarkX = leftClusterX + leftClusterWidth + bookmarkGap;
-    const int bookmarkY = textY + 5;
-    drawBookmarkStatusIcon(renderer, bookmarkX, bookmarkY);
-    leftClusterWidth += bookmarkStatusIconWidth + bookmarkGap;
+  // Draw Timer Remaining (left side with small clock icon)
+  int timerTextWidth = 0;
+  if (options.timerText && options.timerText[0] != '\0') {
+    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+    const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
+    const int iconSize = std::max(8, textHeight - 2);
+    const int iconGap = 4;
+    const int timerGapFromBattery = 6;
+    const int batteryReserve = SETTINGS.statusBarBattery ? (showBatteryPercentage ? 50 : 20) : 0;
+    const int descenderOffset = std::max(0, lineHeight - textHeight) / 2;
+
+    const int timerX = metrics.statusBarHorizontalMargin + orientedMarginLeft + batteryReserve + timerGapFromBattery;
+    const int iconY = textY + (textHeight - iconSize) / 2 + descenderOffset;
+
+    const int clockRadius = std::max(1, iconSize / 2);
+    renderer.drawRoundedRect(timerX, iconY, iconSize, iconSize, 1, clockRadius, true);
+    // Clock hands
+    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize / 2, iconY + 2);
+    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 5, iconY + iconSize / 2);
+
+    const int timerTextX = timerX + iconSize + iconGap;
+    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, options.timerText);
+    timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, options.timerText) + iconSize + iconGap + timerGapFromBattery;
   }
 
   // Draw Title
   if (!title.empty()) {
-    textY -= textYOffset;
+    textY -= options.textYOffset;
     // Centered chapter title text
     // Page width minus existing content with 30px padding on each side
     const int rendererableScreenWidth =

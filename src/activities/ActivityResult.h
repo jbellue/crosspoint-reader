@@ -59,9 +59,20 @@ struct FilePathResult {
   std::string path;
 };
 
+enum class ReaderTimerMode : uint8_t {
+  Off,
+  Time,
+  Pages,
+};
+
+struct ReaderTimerConfigResult {
+  ReaderTimerMode mode = ReaderTimerMode::Off;
+  uint32_t value = 0;  // seconds for time mode, count for page mode
+};
+
 using ResultVariant =
     std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult, IntervalResult,
-                 PageResult, ProgressChangeResult, NetworkModeResult, FootnoteResult, FilePathResult>;
+                 PageResult, ProgressChangeResult, NetworkModeResult, FootnoteResult, FilePathResult, ReaderTimerConfigResult>;
 
 struct ActivityResult {
   bool isCancelled = false;
