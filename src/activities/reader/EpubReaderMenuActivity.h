@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "activities/Activity.h"
+#include "components/OptionPopup.h"
 #include "util/ButtonNavigator.h"
 
 class EpubReaderMenuActivity final : public Activity {
@@ -14,6 +15,7 @@ class EpubReaderMenuActivity final : public Activity {
   enum class MenuAction {
     SELECT_CHAPTER,
     FOOTNOTES,
+    TIMER,
     GO_TO_PERCENT,
     AUTO_PAGE_TURN,
     ROTATE_SCREEN,
@@ -49,6 +51,7 @@ class EpubReaderMenuActivity final : public Activity {
   int selectedIndex = 0;
 
   ButtonNavigator buttonNavigator;
+  OptionPopup optionPopup;
   std::string title = "Reader Menu";
   uint8_t pendingOrientation = 0;
   uint8_t selectedPageTurnOption = 0;

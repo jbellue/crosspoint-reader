@@ -3,9 +3,12 @@
 
 #include <cstdint>
 #include <iosfwd>
+#include <mutex>
 
 class CrossPointSettings {
  private:
+  mutable std::mutex _mutex;
+
   // Private constructor for singleton
   CrossPointSettings() = default;
 
@@ -16,6 +19,10 @@ class CrossPointSettings {
   // Delete copy constructor and assignment
   CrossPointSettings(const CrossPointSettings&) = delete;
   CrossPointSettings& operator=(const CrossPointSettings&) = delete;
+
+  // Access the settings mutex for protecting multi-field reads/writes from other cores.
+  // Callers must not re-enter SETTINGS methods that lock _mutex while holding it.
+  std::mutex& getMutex() const { return _mutex; }
 
   enum SLEEP_SCREEN_MODE {
     DARK = 0,
@@ -188,6 +195,7 @@ class CrossPointSettings {
   uint8_t statusBarProgressBarThickness = PROGRESS_BAR_NORMAL;
   uint8_t statusBarTitle = CHAPTER_TITLE;
   uint8_t statusBarBattery = 1;
+  uint8_t statusBarTimerRemaining = 0;
   uint8_t xtcStatusBarMode = XTC_STATUS_BAR_HIDE;
   // Clock display in status bar (X3 only, requires DS3231 RTC)
   uint8_t statusBarClock = STATUS_BAR_CLOCK_HIDE;

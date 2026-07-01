@@ -104,8 +104,8 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
     std::vector<SettingInfo> v = {
         // --- Display ---
         SettingInfo::Enum(StrId::STR_SLEEP_SCREEN, &CrossPointSettings::sleepScreen,
-                          {StrId::STR_DARK, StrId::STR_LIGHT, StrId::STR_CUSTOM, StrId::STR_COVER, StrId::STR_NONE_OPT,
-                           StrId::STR_COVER_CUSTOM, StrId::STR_QUICK_RESUME},
+                          {StrId::STR_DARK, StrId::STR_LIGHT, StrId::STR_CUSTOM, StrId::STR_COVER,
+                           StrId::STR_COVER_CUSTOM, StrId::STR_NONE_OPT, StrId::STR_QUICK_RESUME},
                           "sleepScreen", StrId::STR_CAT_DISPLAY),
         SettingInfo::Enum(StrId::STR_SLEEP_COVER_MODE, &CrossPointSettings::sleepScreenCoverMode,
                           {StrId::STR_FIT, StrId::STR_CROP}, "sleepScreenCoverMode", StrId::STR_CAT_DISPLAY),
@@ -240,6 +240,8 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
                           StrId::STR_CUSTOMISE_STATUS_BAR),
         SettingInfo::Toggle(StrId::STR_BATTERY, &CrossPointSettings::statusBarBattery, "statusBarBattery",
                             StrId::STR_CUSTOMISE_STATUS_BAR),
+        SettingInfo::Toggle(StrId::STR_TIMER_REMAINING, &CrossPointSettings::statusBarTimerRemaining,
+                "statusBarTimerRemaining", StrId::STR_CUSTOMISE_STATUS_BAR),
         SettingInfo::Enum(StrId::STR_XTC_STATUS_BAR, &CrossPointSettings::xtcStatusBarMode,
                           {StrId::STR_HIDE, StrId::STR_BOTTOM, StrId::STR_TOP}, "xtcStatusBarMode",
                           StrId::STR_CUSTOMISE_STATUS_BAR),
