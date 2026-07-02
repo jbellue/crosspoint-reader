@@ -43,6 +43,7 @@ class EpubReaderActivity final : public Activity {
   bool pendingTimerSleepRequest = false;
   bool showBookmarkMessage = false;
   bool ignoreNextConfirmRelease = false;
+  bool ignoreNextBackRelease = false;
   bool currentPageBookmarked = false;
   bool bookmarkRemoved = false;  // true when last toggle removed (controls popup text)
   std::vector<BookmarkEntry> cachedBookmarks;

@@ -281,6 +281,7 @@ void EpubReaderActivity::loop() {
     return;
   }
 
+<<<<<<< HEAD
   // Drive any in-progress incremental section build forward, off the page-turn critical path,
   // but only within a small window ahead of the reader: an unbounded build monopolized the
   // RenderLock and locked out page turns. The build follows the reader instead, and instant
@@ -306,6 +307,21 @@ void EpubReaderActivity::loop() {
         requestUpdate();
       }
     }
+=======
+  if (skipNextButtonCheck) {
+    skipNextButtonCheck = false;
+    return;
+  }
+
+  if (ignoreNextBackRelease) {
+    // Drop one leaked Back edge from subactivity close so it doesn't trigger
+    // reader-level navigation (Home/file browser) on return.
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+        mappedInput.isPressed(MappedInputManager::Button::Back)) {
+      return;
+    }
+    ignoreNextBackRelease = false;
+>>>>>>> 4d56b4b2 (feat(timer): implement reader timer functionality with presets and UI integration)
   }
 
   // End-of-Book screen reached (currentSpineIndex == spine count) means the book is
@@ -899,7 +915,12 @@ void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& init
                                                 StrId::STR_SNOOZE, false, ReaderTimerMode::Pages,
                                                 finishChapterPagesLeft, customLabel),
       [this](const ActivityResult& snoozeResult) {
+        skipNextButtonCheck = true;
+        ignoreNextBackRelease = true;
         if (snoozeResult.isCancelled) {
+          // User dismissed snooze choices; ignore this expired timer instance.
+          readerTimer.applyTimerConfig({ReaderTimerMode::Off, 0}, currentSpineIndex,
+                                       section ? section->currentPage : nextPageNumber);
           requestUpdate();
           return;
         }
@@ -913,8 +934,24 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
   readerTimer.clearExpiryPromptPending();
   startActivityForResult(std::make_unique<EpubReaderTimerPromptActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
-                           if (!result.isCancelled) {
+                           skipNextButtonCheck = true;
+                           ignoreNextBackRelease = true;
+
+                           uint32_t action = 0;
+                           if (std::holds_alternative<IntervalResult>(result.data)) {
+                             action = std::get<IntervalResult>(result.data).value;
+                           } else {
+                             // Backward compatibility with pre-tristate result handling.
+                             action = result.isCancelled ? 2 : 1;
+                           }
+
+                           if (action == 2) {
                              pendingTimerSleepRequest = true;
+                             return;
+                           }
+
+                           if (action == 0) {
+                             requestUpdate();
                              return;
                            }
 
