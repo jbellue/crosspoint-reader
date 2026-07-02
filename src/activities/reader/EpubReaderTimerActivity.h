@@ -2,12 +2,12 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 #include <I18n.h>
 
-#include "MappedInputManager.h"
 #include "activities/Activity.h"
-#include "util/ButtonNavigator.h"
+#include "components/OptionPopup.h"
 
 class EpubReaderTimerActivity final : public Activity {
  public:
@@ -37,5 +37,6 @@ class EpubReaderTimerActivity final : public Activity {
   char customOptionLabel[MAX_CUSTOM_LABEL_LEN] = {};
   StrId titleId = StrId::STR_TIMER;
   int selectedIndex = 0;
-  ButtonNavigator buttonNavigator;
+  OptionPopup optionPopup;
+  bool selectionCommitted = false;
 };

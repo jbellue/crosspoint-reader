@@ -1,41 +1,46 @@
 #include "EpubReaderTimerPromptActivity.h"
 
-#include <HalGPIO.h>
-#include <I18n.h>
-
-#include "components/UITheme.h"
-#include "fontIds.h"
-
 void EpubReaderTimerPromptActivity::onEnter() {
   Activity::onEnter();
 
-  const int maxWidth = renderer.getScreenWidth() - 40;
-  safeHeading = renderer.truncatedText(UI_10_FONT_ID, tr(STR_TIMER_EXPIRED_TITLE), maxWidth, EpdFontFamily::BOLD);
+  selectionCommitted = false;
+  const char* const options[] = {tr(STR_SNOOZE), tr(STR_SLEEP), tr(STR_CANCEL)};
+  optionPopup.show(tr(STR_TIMER_EXPIRED_TITLE), options, 3, OPTION_SNOOZE, [this](int idx) {
+    selectionCommitted = true;
+    IntervalResult actionResult;
+    if (idx == OPTION_SLEEP) {
+      actionResult.value = ACTION_SLEEP;
+    } else if (idx == OPTION_SNOOZE) {
+      actionResult.value = ACTION_SNOOZE;
+    } else {
+      actionResult.value = ACTION_CANCEL;
+    }
+    setResult(actionResult);
+    finish();
+  });
 
   requestUpdate(true);
 }
 
 void EpubReaderTimerPromptActivity::loop() {
-  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    ActivityResult result;
-    result.isCancelled = false;
-    setResult(std::move(result));
-    finish();
+  const bool wasActive = optionPopup.isActive();
+  if (optionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) {
+    if (wasActive && !optionPopup.isActive() && !selectionCommitted) {
+      // Back closes OptionPopup without a selection callback; treat as Cancel.
+      setResult(IntervalResult{ACTION_CANCEL});
+      finish();
+    }
     return;
   }
 
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    ActivityResult result;
-    result.isCancelled = true;
-    setResult(std::move(result));
+  if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+    // Safety fallback in case popup is not active.
+    setResult(IntervalResult{ACTION_CANCEL});
     finish();
     return;
   }
 }
 
 void EpubReaderTimerPromptActivity::render(RenderLock&&) {
-  const auto labels = mappedInput.mapLabels(tr(STR_SNOOZE), tr(STR_SLEEP), "", "");
-  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-
-  GUI.drawPopup(renderer, safeHeading.c_str());
+  if (optionPopup.processRender(renderer, mappedInput)) return;
 }

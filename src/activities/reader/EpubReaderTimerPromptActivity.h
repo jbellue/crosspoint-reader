@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 
 #include "activities/Activity.h"
+#include "components/OptionPopup.h"
 
 class EpubReaderTimerPromptActivity final : public Activity {
  public:
@@ -15,5 +15,14 @@ class EpubReaderTimerPromptActivity final : public Activity {
   void render(RenderLock&&) override;
 
  private:
-  std::string safeHeading;
+  static constexpr int OPTION_SNOOZE = 0;
+  static constexpr int OPTION_SLEEP = 1;
+  static constexpr int OPTION_CANCEL = 2;
+
+  static constexpr uint32_t ACTION_CANCEL = 0;
+  static constexpr uint32_t ACTION_SNOOZE = 1;
+  static constexpr uint32_t ACTION_SLEEP = 2;
+
+  OptionPopup optionPopup;
+  bool selectionCommitted = false;
 };

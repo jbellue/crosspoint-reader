@@ -30,7 +30,8 @@ class EpubReaderMenuActivity final : public Activity {
 
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
-                                  const uint8_t currentOrientation, const bool hasFootnotes, bool hasBookmarks);
+                                  const uint8_t currentOrientation, const bool hasFootnotes, bool hasBookmarks,
+                                  ReaderTimerMode currentTimerMode, uint32_t currentTimerValue);
 
   void onEnter() override;
   void onExit() override;
@@ -44,17 +45,24 @@ class EpubReaderMenuActivity final : public Activity {
   };
 
   static std::vector<MenuItem> buildMenuItems(bool hasFootnotes, bool hasBookmarks);
+  static std::vector<StrId> buildTimerOptionLabels();
+  static uint8_t timerOptionFromConfig(ReaderTimerMode mode, uint32_t value);
 
   // Fixed menu layout
   const std::vector<MenuItem> menuItems;
 
   int selectedIndex = 0;
+  bool ignoreNextConfirmRelease = false;
+  bool ignoreNextBackRelease = false;
 
   ButtonNavigator buttonNavigator;
   OptionPopup optionPopup;
   std::string title = "Reader Menu";
   uint8_t pendingOrientation = 0;
   uint8_t selectedPageTurnOption = 0;
+  ReaderTimerConfigResult selectedTimerConfig;
+  uint8_t selectedTimerOption = 0;
+  std::vector<StrId> timerOptionLabels;
   const std::vector<StrId> orientationLabels = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED,
                                                 StrId::STR_LANDSCAPE_CCW};
   const std::vector<const char*> pageTurnLabels = {I18N.get(StrId::STR_STATE_OFF), "1", "3", "6", "12"};

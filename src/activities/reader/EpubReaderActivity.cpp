@@ -257,6 +257,21 @@ void EpubReaderActivity::loop() {
     return;
   }
 
+  if (skipNextButtonCheck) {
+    skipNextButtonCheck = false;
+    return;
+  }
+
+  if (ignoreNextBackRelease) {
+    // Drop one leaked Back edge from subactivity close so it doesn't trigger
+    // reader-level navigation (Home/file browser) on return.
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+        mappedInput.isPressed(MappedInputManager::Button::Back)) {
+      return;
+    }
+    ignoreNextBackRelease = false;
+  }
+
   // End-of-Book screen reached (currentSpineIndex == spine count) means the book is
   // finished. Two independent finished-book features key off this same condition.
   const bool atEndOfBook = currentSpineIndex > 0 && currentSpineIndex >= epub->getSpineItemsCount();
@@ -334,14 +349,27 @@ void EpubReaderActivity::loop() {
       const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
       startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                                  renderer, mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent,
-                                 SETTINGS.orientation, !currentPageFootnotes.empty(), !cachedBookmarks.empty()),
+                                 SETTINGS.orientation, !currentPageFootnotes.empty(), !cachedBookmarks.empty(),
+                                 readerTimer.getMode(), readerTimer.getSelectedValue()),
                              [this](const ActivityResult& result) {
                                // Always apply orientation change even if the menu was cancelled
                                const auto& menu = std::get<MenuResult>(result.data);
                                applyOrientation(menu.orientation);
                                toggleAutoPageTurn(menu.pageTurnOption);
                                if (!result.isCancelled) {
-                                 onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
+                                 const auto action = static_cast<EpubReaderMenuActivity::MenuAction>(menu.action);
+                                 if (action == EpubReaderMenuActivity::MenuAction::TIMER) {
+                                   if (menu.timerConfig.mode == ReaderTimerMode::Off || menu.timerConfig.value == 0) {
+                                     requestUpdate();
+                                     return;
+                                   }
+                                   readerTimer.applyTimerConfig(menu.timerConfig, currentSpineIndex,
+                                                                section ? section->currentPage : nextPageNumber);
+                                   ignoreNextConfirmRelease = true;
+                                   requestUpdate();
+                                 } else {
+                                   onReaderMenuConfirm(action);
+                                 }
                                }
                              });
     }
@@ -811,7 +839,12 @@ void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& init
                                                 StrId::STR_SNOOZE, false, ReaderTimerMode::Pages,
                                                 finishChapterPagesLeft, customLabel),
       [this](const ActivityResult& snoozeResult) {
+        skipNextButtonCheck = true;
+        ignoreNextBackRelease = true;
         if (snoozeResult.isCancelled) {
+          // User dismissed snooze choices; ignore this expired timer instance.
+          readerTimer.applyTimerConfig({ReaderTimerMode::Off, 0}, currentSpineIndex,
+                                       section ? section->currentPage : nextPageNumber);
           requestUpdate();
           return;
         }
@@ -825,8 +858,24 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
   readerTimer.clearExpiryPromptPending();
   startActivityForResult(std::make_unique<EpubReaderTimerPromptActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
-                           if (!result.isCancelled) {
+                           skipNextButtonCheck = true;
+                           ignoreNextBackRelease = true;
+
+                           uint32_t action = 0;
+                           if (std::holds_alternative<IntervalResult>(result.data)) {
+                             action = std::get<IntervalResult>(result.data).value;
+                           } else {
+                             // Backward compatibility with pre-tristate result handling.
+                             action = result.isCancelled ? 2 : 1;
+                           }
+
+                           if (action == 2) {
                              pendingTimerSleepRequest = true;
+                             return;
+                           }
+
+                           if (action == 0) {
+                             requestUpdate();
                              return;
                            }
 

@@ -17,10 +17,22 @@ struct KeyboardResult {
   std::string text;
 };
 
+enum class ReaderTimerMode : uint8_t {
+  Off,
+  Time,
+  Pages,
+};
+
+struct ReaderTimerConfigResult {
+  ReaderTimerMode mode = ReaderTimerMode::Off;
+  uint32_t value = 0;  // seconds for time mode, count for page mode
+};
+
 struct MenuResult {
   int action = -1;
   uint8_t orientation = 0;
   uint8_t pageTurnOption = 0;
+  ReaderTimerConfigResult timerConfig;
 };
 
 struct ChapterResult {
@@ -57,17 +69,6 @@ struct FootnoteResult {
 
 struct FilePathResult {
   std::string path;
-};
-
-enum class ReaderTimerMode : uint8_t {
-  Off,
-  Time,
-  Pages,
-};
-
-struct ReaderTimerConfigResult {
-  ReaderTimerMode mode = ReaderTimerMode::Off;
-  uint32_t value = 0;  // seconds for time mode, count for page mode
 };
 
 using ResultVariant =
