@@ -248,16 +248,34 @@ void EpubReaderActivity::openReaderMenu() {
     bookProgress = epub->calculateProgress(currentSpineIndex, chapterProgress) * 100.0f;
   }
   const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
+
+  char timerRemainingBuf[24] = {0};
+  const bool hasRunningTimer = readerTimer.formatRemainingCompact(timerRemainingBuf, sizeof(timerRemainingBuf));
+  char timerMenuLabelBuf[64] = {0};
+  if (hasRunningTimer) {
+    snprintf(timerMenuLabelBuf, sizeof(timerMenuLabelBuf), tr(STR_TIMER_MENU_REMAINING_FORMAT), timerRemainingBuf);
+  }
+  const std::string timerMenuLabel = hasRunningTimer ? std::string(timerMenuLabelBuf) : std::string(tr(STR_START_TIMER));
+
   startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                              renderer, mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent,
-                             SETTINGS.orientation, !currentPageFootnotes.empty(), !cachedBookmarks.empty()),
+                             SETTINGS.orientation, !currentPageFootnotes.empty(), !cachedBookmarks.empty(),
+                             timerMenuLabel, readerTimer.getMode(), readerTimer.getSelectedValue(), hasRunningTimer),
                          [this](const ActivityResult& result) {
                            // Always apply orientation change even if the menu was cancelled
                            const auto& menu = std::get<MenuResult>(result.data);
                            applyOrientation(menu.orientation);
                            toggleAutoPageTurn(menu.pageTurnOption);
                            if (!result.isCancelled) {
-                             onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
+                             const auto action = static_cast<EpubReaderMenuActivity::MenuAction>(menu.action);
+                             if (action == EpubReaderMenuActivity::MenuAction::TIMER) {
+                               readerTimer.applyTimerConfig(menu.timerConfig, currentSpineIndex,
+                                                            section ? section->currentPage : nextPageNumber);
+                               ignoreNextConfirmRelease = true;
+                               requestUpdate();
+                             } else {
+                               onReaderMenuConfirm(action);
+                             }
                            }
                          });
 }
@@ -281,7 +299,21 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-<<<<<<< HEAD
+  if (skipNextButtonCheck) {
+    skipNextButtonCheck = false;
+    return;
+  }
+
+  if (ignoreNextBackRelease) {
+    // Drop one leaked Back edge from subactivity close so it doesn't trigger
+    // reader-level navigation (Home/file browser) on return.
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+        mappedInput.isPressed(MappedInputManager::Button::Back)) {
+      return;
+    }
+    ignoreNextBackRelease = false;
+  }
+
   // Drive any in-progress incremental section build forward, off the page-turn critical path,
   // but only within a small window ahead of the reader: an unbounded build monopolized the
   // RenderLock and locked out page turns. The build follows the reader instead, and instant
@@ -307,21 +339,6 @@ void EpubReaderActivity::loop() {
         requestUpdate();
       }
     }
-=======
-  if (skipNextButtonCheck) {
-    skipNextButtonCheck = false;
-    return;
-  }
-
-  if (ignoreNextBackRelease) {
-    // Drop one leaked Back edge from subactivity close so it doesn't trigger
-    // reader-level navigation (Home/file browser) on return.
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-        mappedInput.isPressed(MappedInputManager::Button::Back)) {
-      return;
-    }
-    ignoreNextBackRelease = false;
->>>>>>> 4d56b4b2 (feat(timer): implement reader timer functionality with presets and UI integration)
   }
 
   // End-of-Book screen reached (currentSpineIndex == spine count) means the book is
@@ -425,7 +442,7 @@ void EpubReaderActivity::loop() {
   }
 
   // Long-press Confirm runs the user-selected function (SETTINGS.longPressMenuFunction).
-  if (mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
+  if (!ignoreNextConfirmRelease && mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
     switch (SETTINGS.longPressMenuFunction) {
       case CrossPointSettings::LP_MENU_BOOKMARK:
         // Hold ~0.4s drops a bookmark at the current page.
@@ -723,15 +740,25 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       break;
     }
     case EpubReaderMenuActivity::MenuAction::TIMER: {
+      char timerRemainingBuf[24] = {0};
+      const bool hasRunningTimer = readerTimer.formatRemaining(timerRemainingBuf, sizeof(timerRemainingBuf));
       startActivityForResult(
           std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, readerTimer.getMode(),
-                                                    readerTimer.getSelectedValue()),
+                                                    readerTimer.getSelectedValue(), StrId::STR_TIMER,
+                                                    hasRunningTimer),
           [this](const ActivityResult& result) {
+            // Consume leaked button edges from closing the timer picker so they
+            // do not immediately reopen the menu or trigger reader actions.
+            skipNextButtonCheck = true;
+            ignoreNextBackRelease = true;
             if (!result.isCancelled) {
               readerTimer.applyTimerConfig(std::get<ReaderTimerConfigResult>(result.data), currentSpineIndex,
                                            section ? section->currentPage : nextPageNumber);
-              requestUpdate();
+              // The picker is usually confirmed with the Confirm button;
+              // suppress that release in the reader loop.
+              ignoreNextConfirmRelease = true;
             }
+            requestUpdate();
           });
       break;
     }

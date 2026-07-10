@@ -3,8 +3,8 @@
 #include <GfxRenderer.h>
 #include <I18n.h>
 
+#include "EpubReaderTimerActivity.h"
 #include "MappedInputManager.h"
-#include "ReaderTimerPresets.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -12,31 +12,21 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
                                                const bool hasFootnotes, const bool hasBookmarks,
-                                               const ReaderTimerMode currentTimerMode, const uint32_t currentTimerValue)
+                                               const std::string& timerMenuLabel,
+                                               const ReaderTimerMode currentTimerMode,
+                                               const uint32_t currentTimerValue,
+                                               const bool hasRunningTimer)
     : Activity("EpubReaderMenu", renderer, mappedInput),
       menuItems(buildMenuItems(hasFootnotes, hasBookmarks)),
       title(title),
+      timerMenuLabel(timerMenuLabel),
+      currentTimerMode(currentTimerMode),
+      currentTimerValue(currentTimerValue),
+      hasRunningTimer(hasRunningTimer),
       pendingOrientation(currentOrientation),
-      selectedTimerConfig{currentTimerMode, currentTimerValue},
-      selectedTimerOption(timerOptionFromConfig(currentTimerMode, currentTimerValue)),
-      timerOptionLabels(buildTimerOptionLabels()),
       currentPage(currentPage),
       totalPages(totalPages),
       bookProgressPercent(bookProgressPercent) {}
-
-uint8_t EpubReaderMenuActivity::timerOptionFromConfig(const ReaderTimerMode mode, const uint32_t value) {
-  return ReaderTimerPresets::optionIndexFromConfig(mode, value);
-}
-
-std::vector<StrId> EpubReaderMenuActivity::buildTimerOptionLabels() {
-  std::vector<StrId> labels;
-  labels.reserve(1 + ReaderTimerPresets::kTimeLabelIds.size());
-  labels.push_back(StrId::STR_CANCEL);
-  for (const auto labelId : ReaderTimerPresets::kTimeLabelIds) {
-    labels.push_back(labelId);
-  }
-  return labels;
-}
 
 std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes,
                                                                                      bool hasBookmarks) {
@@ -50,7 +40,7 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
     items.push_back({MenuAction::BOOKMARKS, StrId::STR_BOOKMARKS});
   }
   items.push_back({MenuAction::TOGGLE_BOOKMARK, StrId::STR_TOGGLE_BOOKMARK});
-  items.push_back({MenuAction::TIMER, StrId::STR_START_TIMER});
+  items.push_back({MenuAction::TIMER, StrId::STR_TIMER});
   items.push_back({MenuAction::ROTATE_SCREEN, StrId::STR_ORIENTATION});
   items.push_back({MenuAction::AUTO_PAGE_TURN, StrId::STR_AUTO_TURN_PAGES_PER_MIN});
   items.push_back({MenuAction::GO_TO_PERCENT, StrId::STR_GO_TO_PERCENT});
@@ -120,25 +110,29 @@ void EpubReaderMenuActivity::loop() {
     }
 
     if (selectedAction == MenuAction::TIMER) {
-      optionPopup.show(StrId::STR_TIMER, timerOptionLabels.data(), static_cast<int>(timerOptionLabels.size()),
-                       selectedTimerOption, [this](int idx) {
-                         if (idx == 0) {
-                           requestUpdate();
-                           return;
-                         }
-                         selectedTimerOption = idx;
-                         selectedTimerConfig = ReaderTimerPresets::configFromOptionIndex(selectedTimerOption);
-                         ignoreNextConfirmRelease = true;
-                         setResult(MenuResult{static_cast<int>(MenuAction::TIMER), pendingOrientation,
-                                              selectedPageTurnOption, selectedTimerConfig});
-                         finish();
-                       });
-      requestUpdate();
+      startActivityForResult(
+          std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, currentTimerMode, currentTimerValue,
+                                                    StrId::STR_TIMER, hasRunningTimer),
+          [this](const ActivityResult& timerResult) {
+            // Swallow the close edge from the timer picker so Back/Confirm does
+            // not immediately close this menu.
+            ignoreNextBackRelease = true;
+            ignoreNextConfirmRelease = true;
+            if (timerResult.isCancelled) {
+              requestUpdate();
+              return;
+            }
+
+            const auto timerConfig = std::get<ReaderTimerConfigResult>(timerResult.data);
+            setResult(MenuResult{static_cast<int>(MenuAction::TIMER), pendingOrientation, selectedPageTurnOption,
+                                 timerConfig});
+            finish();
+          });
       return;
     }
 
     setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption,
-                         selectedTimerConfig});
+                         {ReaderTimerMode::Off, 0}});
     finish();
     return;
   } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
@@ -149,7 +143,7 @@ void EpubReaderMenuActivity::loop() {
 
     ActivityResult result;
     result.isCancelled = true;
-    result.data = MenuResult{-1, pendingOrientation, selectedPageTurnOption, selectedTimerConfig};
+    result.data = MenuResult{-1, pendingOrientation, selectedPageTurnOption, {ReaderTimerMode::Off, 0}};
     setResult(std::move(result));
     finish();
     return;
@@ -185,7 +179,13 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
 
   GUI.drawList(
       renderer, Rect{screen.x, contentTop, screen.width, contentHeight}, menuItems.size(), selectedIndex,
-      [this](int index) { return I18N.get(menuItems[index].labelId); }, nullptr, nullptr,
+      [this](int index) {
+        if (menuItems[index].action == MenuAction::TIMER && !timerMenuLabel.empty()) {
+          return timerMenuLabel;
+        }
+        return std::string(I18N.get(menuItems[index].labelId));
+      },
+      nullptr, nullptr,
       [this](int index) {
         const auto value = menuItems[index].action;
         if (value == MenuAction::ROTATE_SCREEN) {

@@ -853,17 +853,15 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   }
 
   // Draw Timer Remaining (left side with small clock icon)
-  int timerTextWidth = 0;
   if (options.timerText && options.timerText[0] != '\0') {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
     const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
     const int iconSize = std::max(8, textHeight - 2);
     const int iconGap = 4;
-    const int timerGapFromBattery = 6;
-    const int batteryReserve = SETTINGS.statusBarBattery ? (showBatteryPercentage ? 50 : 20) : 0;
+    const int timerGapFromLeftCluster = (leftClusterWidth > 0) ? 6 : 0;
     const int descenderOffset = std::max(0, lineHeight - textHeight) / 2;
 
-    const int timerX = metrics.statusBarHorizontalMargin + orientedMarginLeft + batteryReserve + timerGapFromBattery;
+    const int timerX = leftClusterX + leftClusterWidth + timerGapFromLeftCluster;
     const int iconY = textY + (textHeight - iconSize) / 2 + descenderOffset;
 
     const int clockRadius = std::max(1, iconSize / 2);
@@ -874,7 +872,8 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
     const int timerTextX = timerX + iconSize + iconGap;
     renderer.drawText(SMALL_FONT_ID, timerTextX, textY, options.timerText);
-    timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, options.timerText) + iconSize + iconGap + timerGapFromBattery;
+    leftClusterWidth +=
+        renderer.getTextWidth(SMALL_FONT_ID, options.timerText) + iconSize + iconGap + timerGapFromLeftCluster;
   }
 
   // Draw Title

@@ -171,3 +171,37 @@ bool ReaderTimerController::formatRemaining(char* out, const size_t outSize) con
   return success;
 }
 
+bool ReaderTimerController::formatRemainingCompact(char* out, const size_t outSize) const {
+  if (!out || outSize == 0) {
+    return false;
+  }
+
+  if (state.mode == ReaderTimerMode::Off || state.remaining == 0) {
+    return false;
+  }
+
+  int n = 0;
+  switch (state.mode) {
+    case ReaderTimerMode::Time:
+      if (state.remaining < 60) {
+        n = snprintf(out, outSize, "%s", tr(STR_TIMER_LESS_THAN_ONE_MIN_SHORT));
+      } else {
+        n = snprintf(out, outSize, tr(STR_TIMER_MINUTES_SHORT_FORMAT),
+                     static_cast<unsigned long>(state.remaining / 60));
+      }
+      break;
+    case ReaderTimerMode::Pages:
+      n = snprintf(out, outSize, tr(STR_TIMER_PAGES_SHORT_FORMAT), static_cast<unsigned long>(state.remaining));
+      break;
+    case ReaderTimerMode::Off:
+    default:
+      n = 0;
+  }
+
+  const bool success = (n >= 0 && static_cast<size_t>(n) < outSize);
+  if (!success) {
+    out[0] = '\0';
+  }
+  return success;
+}
+
