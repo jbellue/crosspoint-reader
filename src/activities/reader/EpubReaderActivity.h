@@ -42,6 +42,9 @@ class EpubReaderActivity final : public Activity {
   ReaderTimerController readerTimer;
   bool pendingTimerSleepRequest = false;
   bool showBookmarkMessage = false;
+  // "No dictionary set" popup, shown when a lookup is triggered without a configured dictionary.
+  bool showDictionaryMessage = false;
+  unsigned long dictionaryMessageTime = 0UL;
   bool ignoreNextConfirmRelease = false;
   bool ignoreNextBackRelease = false;
   bool currentPageBookmarked = false;
@@ -123,6 +126,7 @@ class EpubReaderActivity final : public Activity {
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   // Opens the reader menu for the current position (short-press Confirm)
   void openReaderMenu();
+  void openDictionaryWordSelect();
   // Returns true if sync acted (launched, or surfaced a save error); false if it was a no-op
   // because no KOReader credentials are stored.
   bool launchKOReaderSync();
