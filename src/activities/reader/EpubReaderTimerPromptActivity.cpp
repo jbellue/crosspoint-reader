@@ -4,16 +4,14 @@ void EpubReaderTimerPromptActivity::onEnter() {
   Activity::onEnter();
 
   selectionCommitted = false;
-  const char* const options[] = {tr(STR_SNOOZE), tr(STR_SLEEP), tr(STR_CANCEL)};
-  optionPopup.show(tr(STR_TIMER_EXPIRED_TITLE), options, 3, OPTION_SNOOZE, [this](int idx) {
+  const char* const options[] = {tr(STR_SNOOZE), tr(STR_SLEEP)};
+  optionPopup.show(tr(STR_TIMER_EXPIRED_TITLE), options, 2, OPTION_SNOOZE, [this](int idx) {
     selectionCommitted = true;
     IntervalResult actionResult;
     if (idx == OPTION_SLEEP) {
       actionResult.value = ACTION_SLEEP;
     } else if (idx == OPTION_SNOOZE) {
       actionResult.value = ACTION_SNOOZE;
-    } else {
-      actionResult.value = ACTION_CANCEL;
     }
     setResult(actionResult);
     finish();

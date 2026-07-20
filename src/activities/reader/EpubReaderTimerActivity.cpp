@@ -14,7 +14,8 @@ EpubReaderTimerActivity::EpubReaderTimerActivity(GfxRenderer& renderer, MappedIn
                                                  const char* customLabel)
   : Activity("EpubReaderTimer", renderer, mappedInput), titleId(screenTitleId) {
 
-  if (includeOff && optionCount < MAX_OPTIONS) {
+  const bool allowOffOption = includeOff && screenTitleId != StrId::STR_SNOOZE;
+  if (allowOffOption && optionCount < MAX_OPTIONS) {
     options[optionCount++] = {ReaderTimerMode::Off, 0, StrId::STR_TIMER_OFF};
   }
 

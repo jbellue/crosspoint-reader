@@ -325,11 +325,6 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  if (skipNextButtonCheck) {
-    skipNextButtonCheck = false;
-    return;
-  }
-
   if (ignoreNextBackRelease) {
     // Drop one leaked Back edge from subactivity close so it doesn't trigger
     // reader-level navigation (Home/file browser) on return.
@@ -811,14 +806,15 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           [this](const ActivityResult& result) {
             // Consume leaked button edges from closing the timer picker so they
             // do not immediately reopen the menu or trigger reader actions.
-            skipNextButtonCheck = true;
-            ignoreNextBackRelease = true;
+            ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+                                    mappedInput.isPressed(MappedInputManager::Button::Back);
             if (!result.isCancelled) {
               readerTimer.applyTimerConfig(std::get<ReaderTimerConfigResult>(result.data), currentSpineIndex,
                                            section ? section->currentPage : nextPageNumber);
               // The picker is usually confirmed with the Confirm button;
               // suppress that release in the reader loop.
-              ignoreNextConfirmRelease = true;
+              ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
+                                         mappedInput.isPressed(MappedInputManager::Button::Confirm);
             }
             requestUpdate();
           });
@@ -1008,10 +1004,12 @@ void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& init
                                                 StrId::STR_SNOOZE, false, ReaderTimerMode::Pages,
                                                 finishChapterPagesLeft, customLabel),
       [this](const ActivityResult& snoozeResult) {
-        skipNextButtonCheck = true;
-        ignoreNextBackRelease = true;
+        ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+                                mappedInput.isPressed(MappedInputManager::Button::Back);
+        ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
+                                   mappedInput.isPressed(MappedInputManager::Button::Confirm);
         if (snoozeResult.isCancelled) {
-          // User dismissed snooze choices; ignore this expired timer instance.
+          // Back from snooze selection closes the timer flow and returns to the book.
           readerTimer.applyTimerConfig({ReaderTimerMode::Off, 0}, currentSpineIndex,
                                        section ? section->currentPage : nextPageNumber);
           requestUpdate();
@@ -1027,8 +1025,11 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
   readerTimer.clearExpiryPromptPending();
   startActivityForResult(std::make_unique<EpubReaderTimerPromptActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
-                           skipNextButtonCheck = true;
-                           ignoreNextBackRelease = true;
+                           ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+                                                   mappedInput.isPressed(MappedInputManager::Button::Back);
+                           ignoreNextConfirmRelease =
+                               mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
+                               mappedInput.isPressed(MappedInputManager::Button::Confirm);
 
                            uint32_t action = 0;
                            if (std::holds_alternative<IntervalResult>(result.data)) {

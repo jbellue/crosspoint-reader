@@ -41,4 +41,5 @@ class ReaderTimerController {
 
   static bool isPositionAfter(int spineA, int pageA, int spineB, int pageB);
   void consumeTimerStep(ReaderTimerMode mode, uint32_t amount);
+  bool formatRemainingImpl(char* out, size_t outSize, bool compact) const;
 };

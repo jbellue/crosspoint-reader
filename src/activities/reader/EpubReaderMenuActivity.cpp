@@ -117,8 +117,10 @@ void EpubReaderMenuActivity::loop() {
           [this](const ActivityResult& timerResult) {
             // Swallow the close edge from the timer picker so Back/Confirm does
             // not immediately close this menu.
-            ignoreNextBackRelease = true;
-            ignoreNextConfirmRelease = true;
+            ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+                                    mappedInput.isPressed(MappedInputManager::Button::Back);
+            ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
+                                       mappedInput.isPressed(MappedInputManager::Button::Confirm);
             if (timerResult.isCancelled) {
               requestUpdate();
               return;
