@@ -780,7 +780,9 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 }
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
-                              const int pageCount, std::string title, const StatusBarRenderOptions& options) const {
+                              const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
+                              const bool fillMargin, const bool isPageBookmarked,
+                              const bool pageCountEstimated, std::string timerText) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -790,7 +792,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
   // Draw Progress Text
   const auto screenHeight = renderer.getScreenHeight();
-  auto textY = screenHeight - UITheme::getInstance().getStatusBarHeight() - orientedMarginBottom - options.paddingBottom - 4;
+  auto textY = screenHeight - UITheme::getInstance().getStatusBarHeight() - orientedMarginBottom - paddingBottom - 4;
 
   const int leftClusterX = metrics.statusBarHorizontalMargin + orientedMarginLeft + 1;
   const int rightClusterX = renderer.getScreenWidth() - metrics.statusBarHorizontalMargin - orientedMarginRight;
@@ -802,7 +804,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     char progressStr[32];
 
     // Prefix the page count with "~" while a still-building spine only yields an estimated total.
-    const char* estimatePrefix = options.pageCountEstimated ? "~" : "";
+    const char* estimatePrefix = pageCountEstimated ? "~" : "";
 
     if (sb.showBookProgressPercent && sb.showChapterPageCount) {
       snprintf(progressStr, sizeof(progressStr), "%s%d/%d  %.0f%%", estimatePrefix, currentPage, pageCount,
@@ -839,7 +841,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   }
 
   // Draw Bookmark
-  if (showStatusBarTextLane && options.isPageBookmarked) {
+  if (showStatusBarTextLane && isPageBookmarked) {
     const int bookmarkY = textY + 5;
     drawBookmarkStatusIcon(renderer, leftClusterX, bookmarkY);
     leftClusterWidth += bookmarkStatusIconWidth + bookmarkStatusIconGap;
@@ -883,7 +885,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   }
 
   // Draw Timer Remaining (left side with small clock icon)
-  if (options.timerText && options.timerText[0] != '\0') {
+  if (!timerText.empty()) {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
     const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
     const int iconSize = std::max(8, textHeight - 2);
@@ -901,14 +903,14 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 5, iconY + iconSize / 2);
 
     const int timerTextX = timerX + iconSize + iconGap;
-    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, options.timerText);
+    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, timerText.c_str());
     leftClusterWidth +=
-        renderer.getTextWidth(SMALL_FONT_ID, options.timerText) + iconSize + iconGap + timerGapFromLeftCluster;
+        renderer.getTextWidth(SMALL_FONT_ID, timerText.c_str()) + iconSize + iconGap + timerGapFromLeftCluster;
   }
 
   // Draw Title
   if (!title.empty()) {
-    textY -= options.textYOffset;
+    textY -= textYOffset;
     // Centered chapter title text
     // Page width minus existing content with 30px padding on each side
     const int rendererableScreenWidth =

@@ -1902,6 +1902,8 @@ void EpubReaderActivity::renderStatusBar() const {
     title = tr(STR_AUTO_TURN_ENABLED) + std::to_string(60 * 1000 / pageTurnDuration);
 
     // calculates textYOffset when rendering title in status bar
+    const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
+
     // offsets text if no status bar or progress bar only
     if (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight()) {
       textYOffset += UITheme::getInstance().getMetrics().statusBarVerticalMargin;
@@ -1919,18 +1921,12 @@ void EpubReaderActivity::renderStatusBar() const {
     title = epub->getTitle();
   }
 
-  if (SETTINGS.statusBarTimerRemaining) {
-    if (readerTimer.formatRemaining(timerTextBuf, sizeof(timerTextBuf))) {
-      timerText = timerTextBuf;
-    }
+  if (SETTINGS.statusBarTimerRemaining && readerTimer.formatRemaining(timerTextBuf, sizeof(timerTextBuf))) {
+    timerText = timerTextBuf;
   }
 
-  StatusBarRenderOptions statusBarOptions;
-  statusBarOptions.textYOffset = textYOffset;
-  statusBarOptions.timerText = timerText;
-  statusBarOptions.isPageBookmarked = currentPageBookmarked;
-  statusBarOptions.pageCountEstimated = section->isBuilding();
-  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, statusBarOptions);
+  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, currentPageBookmarked,
+                  section->isBuilding(), timerText);
 }
 
 void EpubReaderActivity::navigateToHref(const std::string& hrefStr, const bool savePosition) {

@@ -299,11 +299,8 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
   }
 
   const char* timerPreview = SETTINGS.statusBarTimerRemaining ? tr(STR_TIMER_LESS_THAN_ONE_MIN) : nullptr;
-  StatusBarRenderOptions statusBarOptions;
-  statusBarOptions.paddingBottom = verticalPreviewPadding;
-  statusBarOptions.fillMargin = false;
-  statusBarOptions.timerText = timerPreview;
-  GUI.drawStatusBar(renderer, 75, 8, 32, title, statusBarOptions);
+
+  GUI.drawStatusBar(renderer, 75, 8, 32, title, verticalPreviewPadding, 0, false, false, false, timerPreview);
 
   renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding,
                     renderer.getScreenHeight() - UITheme::getInstance().getStatusBarHeight() - verticalPreviewPadding -
