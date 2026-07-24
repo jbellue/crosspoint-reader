@@ -23,8 +23,9 @@ class ReaderTimerController {
   uint32_t getSelectedValue() const { return state.selectedValue; }
   const char* getSnoozeCustomLabel(uint32_t finishChapterPagesLeft, char* out, size_t outSize) const;
 
-  bool formatRemaining(char* out, size_t outSize) const;
-  bool formatRemainingCompact(char* out, size_t outSize) const;
+  std::string formatRemaining(bool compact = false) const;
+
+  bool isTimerActive() const { return state.mode != ReaderTimerMode::Off && state.remaining > 0; }
 
  private:
   struct State {
@@ -41,5 +42,4 @@ class ReaderTimerController {
 
   static bool isPositionAfter(int spineA, int pageA, int spineB, int pageB);
   void consumeTimerStep(ReaderTimerMode mode, uint32_t amount);
-  bool formatRemainingImpl(char* out, size_t outSize, bool compact) const;
 };

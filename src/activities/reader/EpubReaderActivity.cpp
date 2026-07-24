@@ -261,11 +261,11 @@ void EpubReaderActivity::openReaderMenu() {
   }
   const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
 
-  char timerRemainingBuf[24] = {0};
-  const bool hasRunningTimer = readerTimer.formatRemainingCompact(timerRemainingBuf, sizeof(timerRemainingBuf));
+  const std::string timerRemaining = readerTimer.formatRemaining(true);
+  const bool hasRunningTimer = !timerRemaining.empty();
   char timerMenuLabelBuf[64] = {0};
   if (hasRunningTimer) {
-    snprintf(timerMenuLabelBuf, sizeof(timerMenuLabelBuf), tr(STR_TIMER_MENU_REMAINING_FORMAT), timerRemainingBuf);
+    snprintf(timerMenuLabelBuf, sizeof(timerMenuLabelBuf), tr(STR_TIMER_MENU_REMAINING_FORMAT), timerRemaining.c_str());
   }
   const std::string timerMenuLabel = hasRunningTimer ? std::string(timerMenuLabelBuf) : std::string(tr(STR_START_TIMER));
 
@@ -872,12 +872,10 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       break;
     }
     case EpubReaderMenuActivity::MenuAction::TIMER: {
-      char timerRemainingBuf[24] = {0};
-      const bool hasRunningTimer = readerTimer.formatRemaining(timerRemainingBuf, sizeof(timerRemainingBuf));
       startActivityForResult(
           std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, readerTimer.getMode(),
                                                     readerTimer.getSelectedValue(), StrId::STR_TIMER,
-                                                    hasRunningTimer),
+                                                    readerTimer.isTimerActive()),
           [this](const ActivityResult& result) {
             // Consume leaked button edges from closing the timer picker so they
             // do not immediately reopen the menu or trigger reader actions.
@@ -1892,8 +1890,7 @@ void EpubReaderActivity::renderStatusBar() const {
   const float bookProgress = epub->calculateProgress(currentSpineIndex, sectionChapterProg) * 100;
 
   std::string title;
-  char timerTextBuf[16] = {0};
-  const char* timerText = nullptr;
+  std::string timerText;
 
   int textYOffset = 0;
   const auto sb = SETTINGS.statusBarSpec();
@@ -1921,8 +1918,8 @@ void EpubReaderActivity::renderStatusBar() const {
     title = epub->getTitle();
   }
 
-  if (SETTINGS.statusBarTimerRemaining && readerTimer.formatRemaining(timerTextBuf, sizeof(timerTextBuf))) {
-    timerText = timerTextBuf;
+  if (SETTINGS.statusBarTimerRemaining) {
+    timerText = readerTimer.formatRemaining();
   }
 
   GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, currentPageBookmarked,

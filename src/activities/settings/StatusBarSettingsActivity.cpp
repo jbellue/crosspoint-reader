@@ -298,9 +298,9 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
     title = tr(STR_EXAMPLE_CHAPTER);
   }
 
-  const char* timerPreview = SETTINGS.statusBarTimerRemaining ? tr(STR_TIMER_LESS_THAN_ONE_MIN) : nullptr;
+  std::string timerPreview = SETTINGS.statusBarTimerRemaining ? tr(STR_TIMER_LESS_THAN_ONE_MIN) : "";
 
-  GUI.drawStatusBar(renderer, 75, 8, 32, title, verticalPreviewPadding, 0, false, false, false, timerPreview);
+  GUI.drawStatusBar(renderer, 75, 8, 32, title, verticalPreviewPadding, 0, true, false, false, timerPreview);
 
   renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding,
                     renderer.getScreenHeight() - UITheme::getInstance().getStatusBarHeight() - verticalPreviewPadding -

@@ -138,47 +138,29 @@ bool ReaderTimerController::isPositionAfter(const int spineA, const int pageA, c
   return pageA > pageB;
 }
 
-bool ReaderTimerController::formatRemainingImpl(char* out, const size_t outSize, const bool compact) const {
-  if (!out || outSize == 0) {
-    return false;
-  }
-
+std::string ReaderTimerController::formatRemaining(bool compact) const {
   if (state.mode == ReaderTimerMode::Off || state.remaining == 0) {
-    return false;
+    return {};
   }
 
-  int n = 0;
-  switch (state.mode) {
-    case ReaderTimerMode::Time:
-      if (state.remaining < 60) {
-        n = snprintf(out, outSize, "%s",
-                     compact ? tr(STR_TIMER_LESS_THAN_ONE_MIN_SHORT) : tr(STR_TIMER_LESS_THAN_ONE_MIN));
-      } else {
-        n = snprintf(out, outSize,
-                     compact ? tr(STR_TIMER_MINUTES_SHORT_FORMAT) : tr(STR_TIMER_MINUTES_FORMAT),
-                     static_cast<unsigned long>(state.remaining / 60));
-      }
-      break;
-    case ReaderTimerMode::Pages:
-      n = snprintf(out, outSize, tr(STR_TIMER_PAGES_SHORT_FORMAT), static_cast<unsigned long>(state.remaining));
-      break;
-    case ReaderTimerMode::Off:
-    default:
-      n = 0;
+  char buffer[64]{};
+
+  if (state.mode == ReaderTimerMode::Time) {
+    if (state.remaining < 60) {
+      return compact ? tr(STR_TIMER_LESS_THAN_ONE_MIN_SHORT) : tr(STR_TIMER_LESS_THAN_ONE_MIN);
+    }
+    std::snprintf(buffer, sizeof(buffer),
+                  compact ? tr(STR_TIMER_MINUTES_SHORT_FORMAT) : tr(STR_TIMER_MINUTES_FORMAT),
+                  static_cast<unsigned long>(state.remaining / 60));
+    return std::string(buffer);
   }
 
-  const bool success = (n >= 0 && static_cast<size_t>(n) < outSize);
-  if (!success) {
-    out[0] = '\0';
+  if (state.mode == ReaderTimerMode::Pages) {
+    std::snprintf(buffer, sizeof(buffer), tr(STR_TIMER_PAGES_SHORT_FORMAT),
+                  static_cast<unsigned long>(state.remaining));
+    return std::string(buffer);
   }
-  return success;
-}
 
-bool ReaderTimerController::formatRemainingCompact(char* out, const size_t outSize) const {
-  return formatRemainingImpl(out, outSize, true);
-}
-
-bool ReaderTimerController::formatRemaining(char* out, const size_t outSize) const {
-  return formatRemainingImpl(out, outSize, false);
+  return {};
 }
 
