@@ -496,7 +496,7 @@ void EpubReaderActivity::loop() {
   }
 
   // Long-press Confirm runs the user-selected function (SETTINGS.longPressMenuFunction).
-  if (!ignoreNextConfirmRelease && mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
+  if (mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
     switch (SETTINGS.longPressMenuFunction) {
       case CrossPointSettings::LP_MENU_BOOKMARK:
         // Hold ~0.4s drops a bookmark at the current page.
@@ -607,6 +607,7 @@ void EpubReaderActivity::loop() {
       requestUpdate();
       return;
     }
+
     // We don't want to delete the section mid-render, so grab the semaphore
     {
       RenderLock lock(*this);
