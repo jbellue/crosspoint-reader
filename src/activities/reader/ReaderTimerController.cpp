@@ -24,8 +24,7 @@ void ReaderTimerController::applyTimerConfig(const ReaderTimerConfigResult& conf
   state.remaining = config.value;
   state.lastTickMillis = millis();
   state.expiryPromptPending = false;
-  state.highWaterSpineIndex = currentSpineIndex;
-  state.highWaterPage = currentPage;
+  state.currentSpineIndex = currentSpineIndex;
 }
 
 void ReaderTimerController::applySnoozeConfig(const ReaderTimerConfigResult& config, const int currentSpineIndex,
@@ -87,55 +86,12 @@ void ReaderTimerController::recordForwardAdvance(const int newSpineIndex, const 
     return;
   }
 
-  if (!isPositionAfter(newSpineIndex, newPage, state.highWaterSpineIndex, state.highWaterPage)) {
+  if (newSpineIndex <= state.currentSpineIndex) {
     return;
   }
 
-  state.highWaterSpineIndex = newSpineIndex;
-  state.highWaterPage = newPage;
-
-  consumeTimerStep(ReaderTimerMode::Pages, 1);
-}
-
-const char* ReaderTimerController::getSnoozeCustomLabel(const uint32_t finishChapterPagesLeft, char* out,
-                                                        const size_t outSize) const {
-  if (!out || outSize == 0 || finishChapterPagesLeft == 0) {
-    return nullptr;
-  }
-
-  const char* baseLabel = tr(STR_SNOOZE_END_CHAPTER);
-  int n = snprintf(out, outSize, "%s", baseLabel);
-  if (n < 0 || static_cast<size_t>(n) >= outSize) {
-    out[0] = '\0';
-    return nullptr;
-  }
-
-  if (finishChapterPagesLeft <= 1) {
-    return out;
-  }
-
-  size_t used = static_cast<size_t>(n);
-  if (used + 1 >= outSize) {
-    out[0] = '\0';
-    return nullptr;
-  }
-  out[used++] = ' ';
-  out[used] = '\0';
-
-  n = snprintf(out + used, outSize - used, tr(STR_SNOOZE_PAGES_LEFT_FORMAT), static_cast<int>(finishChapterPagesLeft));
-  if (n < 0 || static_cast<size_t>(n) >= (outSize - used)) {
-    out[0] = '\0';
-    return nullptr;
-  }
-
-  return out;
-}
-
-bool ReaderTimerController::isPositionAfter(const int spineA, const int pageA, const int spineB, const int pageB) {
-  if (spineA != spineB) {
-    return spineA > spineB;
-  }
-  return pageA > pageB;
+  state.currentSpineIndex = newSpineIndex;
+  consumeTimerStep(ReaderTimerMode::Chapter, 1);
 }
 
 std::string ReaderTimerController::formatRemaining(bool compact) const {
@@ -155,10 +111,8 @@ std::string ReaderTimerController::formatRemaining(bool compact) const {
     return std::string(buffer);
   }
 
-  if (state.mode == ReaderTimerMode::Pages) {
-    std::snprintf(buffer, sizeof(buffer), tr(STR_TIMER_PAGES_SHORT_FORMAT),
-                  static_cast<unsigned long>(state.remaining));
-    return std::string(buffer);
+  if (state.mode == ReaderTimerMode::Chapter) {
+    return tr(STR_TIMER_END_OF_CHAPTER);
   }
 
   return {};

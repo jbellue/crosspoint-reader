@@ -9,9 +9,7 @@
 
 EpubReaderTimerActivity::EpubReaderTimerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                  const ReaderTimerMode currentMode, const uint32_t currentValue,
-                                                 const StrId screenTitleId, const bool includeOff,
-                                                 const ReaderTimerMode customMode, const uint32_t customValue,
-                                                 const char* customLabel)
+                                                 const StrId screenTitleId, const bool includeOff)
   : Activity("EpubReaderTimer", renderer, mappedInput), titleId(screenTitleId) {
 
   const bool allowOffOption = includeOff && screenTitleId != StrId::STR_SNOOZE;
@@ -28,14 +26,6 @@ EpubReaderTimerActivity::EpubReaderTimerActivity(GfxRenderer& renderer, MappedIn
     options[optionCount].value = preset.value;
     options[optionCount].labelId = ReaderTimerPresets::kTimeLabelIds[i];
     ++optionCount;
-  }
-
-  if (customLabel && customLabel[0] != '\0' && customMode != ReaderTimerMode::Off && customValue > 0 &&
-      optionCount < MAX_OPTIONS) {
-    strncpy(customOptionLabel, customLabel, sizeof(customOptionLabel) - 1);
-    customOptionLabel[sizeof(customOptionLabel) - 1] = '\0';
-    customOptionIndex = optionCount;
-    options[optionCount++] = {customMode, customValue, StrId::STR_TIMER};
   }
 
   for (int i = 0; i < optionCount; i++) {

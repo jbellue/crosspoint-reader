@@ -262,12 +262,20 @@ void EpubReaderActivity::openReaderMenu() {
   const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
 
   const std::string timerRemaining = readerTimer.formatRemaining(true);
-  const bool hasRunningTimer = !timerRemaining.empty();
-  char timerMenuLabelBuf[64] = {0};
-  if (hasRunningTimer) {
-    snprintf(timerMenuLabelBuf, sizeof(timerMenuLabelBuf), tr(STR_TIMER_MENU_REMAINING_FORMAT), timerRemaining.c_str());
-  }
-  const std::string timerMenuLabel = hasRunningTimer ? std::string(timerMenuLabelBuf) : std::string(tr(STR_START_TIMER));
+  const bool hasRunningTimer = readerTimer.isTimerActive();
+
+  const std::string timerMenuLabel =
+      hasRunningTimer
+          ? [fmt = tr(STR_TIMER_MENU_REMAINING_FORMAT), &timerRemaining]() {
+              const int n = std::snprintf(nullptr, 0, fmt, timerRemaining.c_str());
+              std::string s;
+              if (n > 0) {
+                  s.resize(static_cast<size_t>(n));
+                  std::snprintf(s.data(), s.size() + 1, fmt, timerRemaining.c_str());
+              }
+              return s;
+          }()
+          : tr(STR_START_TIMER);
 
   startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                              renderer, mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent,
@@ -1071,15 +1079,9 @@ uint32_t EpubReaderActivity::remainingPagesInCurrentChapter() const {
 }
 
 void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze) {
-  const uint32_t finishChapterPagesLeft = remainingPagesInCurrentChapter();
-  char finishChapterLabel[96] = {0};
-  const char* customLabel =
-      readerTimer.getSnoozeCustomLabel(finishChapterPagesLeft, finishChapterLabel, sizeof(finishChapterLabel));
-
   startActivityForResult(
       std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, initialSnooze.mode, initialSnooze.value,
-                                                StrId::STR_SNOOZE, false, ReaderTimerMode::Pages,
-                                                finishChapterPagesLeft, customLabel),
+                                                StrId::STR_SNOOZE, false),
       [this](const ActivityResult& snoozeResult) {
         ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
                                 mappedInput.isPressed(MappedInputManager::Button::Back);

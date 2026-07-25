@@ -12,9 +12,7 @@
 class EpubReaderTimerActivity final : public Activity {
  public:
   EpubReaderTimerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, ReaderTimerMode currentMode,
-                          uint32_t currentValue, StrId screenTitleId = StrId::STR_TIMER, bool includeOff = true,
-                          ReaderTimerMode customMode = ReaderTimerMode::Off, uint32_t customValue = 0,
-                          const char* customLabel = nullptr);
+                          uint32_t currentValue, StrId screenTitleId = StrId::STR_TIMER, bool includeOff = true);
 
   void onEnter() override;
   void onExit() override;

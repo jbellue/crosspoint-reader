@@ -20,7 +20,7 @@ struct KeyboardResult {
 enum class ReaderTimerMode : uint8_t {
   Off,
   Time,
-  Pages,
+  Chapter,
 };
 
 struct ReaderTimerConfigResult {
