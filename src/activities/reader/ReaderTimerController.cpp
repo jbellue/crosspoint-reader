@@ -99,16 +99,21 @@ std::string ReaderTimerController::formatRemaining(bool compact) const {
     return {};
   }
 
-  char buffer[64]{};
-
   if (state.mode == ReaderTimerMode::Time) {
     if (state.remaining < 60) {
-      return compact ? tr(STR_TIMER_LESS_THAN_ONE_MIN_SHORT) : tr(STR_TIMER_LESS_THAN_ONE_MIN);
+        return compact ? tr(STR_TIMER_LESS_THAN_ONE_MIN_SHORT) : tr(STR_TIMER_LESS_THAN_ONE_MIN);
     }
-    std::snprintf(buffer, sizeof(buffer),
-                  compact ? tr(STR_TIMER_MINUTES_SHORT_FORMAT) : tr(STR_TIMER_MINUTES_FORMAT),
-                  static_cast<unsigned long>(state.remaining / 60));
-    return std::string(buffer);
+
+    const char* fmt = compact ? tr(STR_TIMER_MINUTES_SHORT_FORMAT) : tr(STR_TIMER_MINUTES_FORMAT);
+    const auto value = static_cast<unsigned long>(state.remaining / 60);
+
+    const int n = std::snprintf(nullptr, 0, fmt, value);
+    std::string s;
+    if (n > 0) {
+        s.resize(static_cast<size_t>(n));
+        std::snprintf(s.data(), s.size() + 1, fmt, value);
+    }
+    return s;
   }
 
   if (state.mode == ReaderTimerMode::Chapter) {
