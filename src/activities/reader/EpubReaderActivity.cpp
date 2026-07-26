@@ -1920,7 +1920,7 @@ void EpubReaderActivity::renderStatusBar() const {
     title = epub->getTitle();
   }
 
-  if (SETTINGS.statusBarTimerRemaining) {
+  if (sb.showTimerRemaining) {
     timerText = readerTimer.formatRemaining();
   }
 
