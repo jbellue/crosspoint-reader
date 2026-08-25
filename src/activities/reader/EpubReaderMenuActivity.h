@@ -34,7 +34,7 @@ class EpubReaderMenuActivity final : public UiListActivity {
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
                                   const uint8_t currentOrientation, const bool hasFootnotes, bool hasBookmarks,
-                                  const std::string& timerMenuLabel, ReaderTimerMode currentTimerMode,
+                                  const char* timerMenuLabel, ReaderTimerMode currentTimerMode,
                                   uint32_t currentTimerValue, bool hasRunningTimer);
 
   void render(RenderLock&&) override;
@@ -73,7 +73,7 @@ class EpubReaderMenuActivity final : public UiListActivity {
   const std::vector<MenuItem> menuItems;
   OptionPopup optionPopup;
   std::string title = "Reader Menu";
-  std::string timerMenuLabel;
+  char timerMenuLabel[64] = {};
   ReaderTimerMode currentTimerMode = ReaderTimerMode::Off;
   uint32_t currentTimerValue = 0;
   bool hasRunningTimer = false;

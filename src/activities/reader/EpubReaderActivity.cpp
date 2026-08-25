@@ -243,21 +243,16 @@ void EpubReaderActivity::openReaderMenu() {
   }
   const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
 
-  const std::string timerRemaining = readerTimer.formatRemaining(true);
+  char timerRemaining[32] = {};
   const bool hasRunningTimer = readerTimer.isTimerActive();
+  const bool hasTimerText = hasRunningTimer && readerTimer.formatRemaining(timerRemaining, sizeof(timerRemaining), true);
 
-  const std::string timerMenuLabel =
-      hasRunningTimer
-          ? [fmt = tr(STR_TIMER_MENU_REMAINING_FORMAT), &timerRemaining]() {
-              const int n = std::snprintf(nullptr, 0, fmt, timerRemaining.c_str());
-              std::string s;
-              if (n > 0) {
-                  s.resize(static_cast<size_t>(n));
-                  std::snprintf(s.data(), s.size() + 1, fmt, timerRemaining.c_str());
-              }
-              return s;
-          }()
-          : tr(STR_START_TIMER);
+  char timerMenuLabel[64] = {};
+  if (hasTimerText) {
+    std::snprintf(timerMenuLabel, sizeof(timerMenuLabel), tr(STR_TIMER_MENU_REMAINING_FORMAT), timerRemaining);
+  } else {
+    std::snprintf(timerMenuLabel, sizeof(timerMenuLabel), "%s", tr(STR_START_TIMER));
+  }
 
   startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                              renderer, mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent,
@@ -1081,18 +1076,28 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
                          });
 }
 
-void EpubReaderActivity::pageTurn(bool isForwardTurn) {
+bool EpubReaderActivity::pageTurn(bool isForwardTurn) {
+  if (!section) return false;
+  {
+    RenderLock lock;
+    clearDeferredReposition();
+  }
   if (isForwardTurn) {
     if (section->currentPage < section->pageCount - 1 || section->isBuilding()) {
       section->currentPage++;
+      lastPageTurnTime = millis();
+      return true;
+    } else if (currentSpineIndex + 1 < epub->getSpineItemsCount()) {
+      RenderLock lock;
+      nextPageNumber = 0;
+      currentSpineIndex++;
+      section.reset();
+      lastPageTurnTime = millis();
+      return true;
     } else {
-      // We don't want to delete the section mid-render, so grab the semaphore
-      {
-        RenderLock lock(*this);
-        nextPageNumber = 0;
-        currentSpineIndex++;
-        section.reset();
-      }
+      currentSpineIndex = epub->getSpineItemsCount();
+      lastPageTurnTime = millis();
+      return true;
     }
   } else {
     if (section->currentPage > 0) {
@@ -1109,12 +1114,49 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
       return true;
     }
   }
-  lastPageTurnTime = millis();
-  requestUpdate();
+  return false;
+}
+
+bool EpubReaderActivity::skipPages(int amount) {
+  if (!section) return false;
+  if (amount > 0) {
+    RenderLock lock;
+    nextPageNumber = 0;
+    currentSpineIndex++;
+    section.reset();
+    return true;
+  } else {
+    if (section->currentPage > 0) {
+      section->currentPage = 0;
+      return true;
+    } else if (currentSpineIndex > 0) {
+      RenderLock lock;
+      nextPageNumber = 0;
+      currentSpineIndex--;
+      section.reset();
+      return true;
+    }
+  }
+  return false;
+}
+
+bool EpubReaderActivity::isAtEndOfBook() const { return epub && currentSpineIndex >= epub->getSpineItemsCount(); }
+
+void EpubReaderActivity::onReturnFromEndOfBook() {
+  if (epub && epub->getSpineItemsCount() > 0) {
+    currentSpineIndex = epub->getSpineItemsCount() - 1;
+    nextPageNumber = 0;
+    pendingPageJump = std::numeric_limits<uint16_t>::max();
+  }
+}
+
+bool EpubReaderActivity::skipLoopDelay() {
+  return section && section->isBuilding() && !buildHeapPaused &&
+         (section->isPartial() || static_cast<int>(section->pageCount) < section->currentPage + BUILD_WINDOW_AHEAD);
 }
 
 // TODO: Failure handling
-void EpubReaderActivity::render(RenderLock&& lock) {
+void EpubReaderActivity::renderBook() {
   if (!epub) {
     return;
   }
@@ -1727,12 +1769,14 @@ void EpubReaderActivity::renderStatusBar() const {
     title = epub ? epub->getTitle() : "";
   }
 
-  if (sb.showTimerRemaining) {
-    timerText = readerTimer.formatRemaining();
+  char timerText[32] = {};
+  const char* statusBarTimerText = nullptr;
+  if (sb.showTimerRemaining && readerTimer.formatRemaining(timerText, sizeof(timerText))) {
+    statusBarTimerText = timerText;
   }
 
   GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, currentPageBookmarked,
-                  section ? section->isBuilding() : false, timerText);
+                  section ? section->isBuilding() : false, statusBarTimerText);
 }
 
 void EpubReaderActivity::navigateToHref(const std::string& hrefStr, const bool savePosition) {

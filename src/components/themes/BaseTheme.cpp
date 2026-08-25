@@ -882,7 +882,7 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
                               const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
                               const bool fillMargin, const bool isPageBookmarked,
-                              const bool pageCountEstimated, std::string timerText) const {
+                              const bool pageCountEstimated, const char* timerText) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -985,7 +985,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   }
 
   // Draw Timer Remaining (left side with small clock icon)
-  if (!timerText.empty()) {
+  if (timerText != nullptr && timerText[0] != '\0') {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
     const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
     const int iconSize = std::max(8, textHeight - 2);
@@ -1003,9 +1003,9 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 5, iconY + iconSize / 2);
 
     const int timerTextX = timerX + iconSize + iconGap;
-    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, timerText.c_str());
+    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, timerText);
     leftClusterWidth +=
-        renderer.getTextWidth(SMALL_FONT_ID, timerText.c_str()) + iconSize + iconGap + timerGapFromLeftCluster;
+        renderer.getTextWidth(SMALL_FONT_ID, timerText) + iconSize + iconGap + timerGapFromLeftCluster;
   }
 
   // Draw Title

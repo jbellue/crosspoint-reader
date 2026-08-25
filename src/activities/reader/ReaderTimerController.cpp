@@ -94,32 +94,33 @@ void ReaderTimerController::recordForwardAdvance(const int newSpineIndex, const 
   consumeTimerStep(ReaderTimerMode::Chapter, 1);
 }
 
-std::string ReaderTimerController::formatRemaining(bool compact) const {
+bool ReaderTimerController::formatRemaining(char* buffer, size_t bufferSize, bool compact) const {
+  if (buffer == nullptr || bufferSize == 0) {
+    return false;
+  }
+
+  buffer[0] = '\0';
+
   if (state.mode == ReaderTimerMode::Off || state.remaining == 0) {
-    return {};
+    return false;
   }
 
   if (state.mode == ReaderTimerMode::Time) {
     if (state.remaining < 60) {
-        return compact ? tr(STR_TIMER_LESS_THAN_ONE_MIN_SHORT) : tr(STR_TIMER_LESS_THAN_ONE_MIN);
+      const char* text = compact ? tr(STR_TIMER_LESS_THAN_ONE_MIN_SHORT) : tr(STR_TIMER_LESS_THAN_ONE_MIN);
+      return std::snprintf(buffer, bufferSize, "%s", text) >= 0;
     }
 
     const char* fmt = compact ? tr(STR_TIMER_MINUTES_SHORT_FORMAT) : tr(STR_TIMER_MINUTES_FORMAT);
     const auto value = static_cast<unsigned long>(state.remaining / 60);
-
-    const int n = std::snprintf(nullptr, 0, fmt, value);
-    std::string s;
-    if (n > 0) {
-        s.resize(static_cast<size_t>(n));
-        std::snprintf(s.data(), s.size() + 1, fmt, value);
-    }
-    return s;
+    return std::snprintf(buffer, bufferSize, fmt, value) >= 0;
   }
 
   if (state.mode == ReaderTimerMode::Chapter) {
-    return tr(STR_TIMER_END_OF_CHAPTER);
+    const char* text = tr(STR_TIMER_END_OF_CHAPTER);
+    return std::snprintf(buffer, bufferSize, "%s", text) >= 0;
   }
 
-  return {};
+  return false;
 }
 

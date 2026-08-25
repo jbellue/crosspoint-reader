@@ -22,7 +22,7 @@ class ReaderTimerController {
   ReaderTimerMode getMode() const { return state.mode; }
   uint32_t getSelectedValue() const { return state.selectedValue; }
 
-  std::string formatRemaining(bool compact = false) const;
+  bool formatRemaining(char* buffer, size_t bufferSize, bool compact = false) const;
 
   bool isTimerActive() const { return state.mode != ReaderTimerMode::Off && state.remaining > 0; }
 

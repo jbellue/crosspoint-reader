@@ -16,14 +16,13 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
                                                const bool hasFootnotes, const bool hasBookmarks,
-                                               const std::string& timerMenuLabel,
+                                               const char* timerMenuLabel,
                                                const ReaderTimerMode currentTimerMode,
                                                const uint32_t currentTimerValue,
                                                const bool hasRunningTimer)
     : UiListActivity("EpubReaderMenu", renderer, mappedInput),
       menuItems(buildMenuItems(hasFootnotes, hasBookmarks)),
       title(title),
-      timerMenuLabel(timerMenuLabel),
       currentTimerMode(currentTimerMode),
       currentTimerValue(currentTimerValue),
       hasRunningTimer(hasRunningTimer),
@@ -31,6 +30,9 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
       currentPage(currentPage),
       totalPages(totalPages),
       bookProgressPercent(bookProgressPercent) {
+  if (timerMenuLabel != nullptr) {
+    std::snprintf(this->timerMenuLabel, sizeof(this->timerMenuLabel), "%s", timerMenuLabel);
+  }
   buildMenuRowItems();
 }
 
@@ -40,8 +42,8 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
 void EpubReaderMenuActivity::buildMenuRowItems() {
   for (size_t i = 0; i < menuItems.size() && i < MAX_MENU_ITEMS; i++) {
     fui::ListItem item;
-    if (menuItems[i].action == MenuAction::TIMER && !timerMenuLabel.empty()) {
-      item.label = timerMenuLabel.c_str();
+    if (menuItems[i].action == MenuAction::TIMER && this->timerMenuLabel[0] != '\0') {
+      item.label = this->timerMenuLabel;
     } else {
       item.label = I18N.get(menuItems[i].labelId);
     }
