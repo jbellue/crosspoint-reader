@@ -1865,7 +1865,7 @@ void EpubReaderActivity::renderStatusBar() const {
 
   char timerText[32] = {};
   const char* statusBarTimerText = nullptr;
-  if (sb.showTimerRemaining && readerTimer.formatRemaining(timerText, sizeof(timerText))) {
+  if (sb.showsTimerRemaining() && readerTimer.formatRemaining(timerText, sizeof(timerText))) {
     statusBarTimerText = timerText;
   }
 

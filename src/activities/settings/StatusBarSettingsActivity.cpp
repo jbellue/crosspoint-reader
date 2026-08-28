@@ -4,6 +4,7 @@
 #include <HalClock.h>
 #include <I18n.h>
 
+#include <cstdio>
 #include <cstring>
 #include <memory>
 
@@ -86,6 +87,9 @@ const StrId xtcStatusBarNames[XTC_STATUS_BAR_ITEMS] = {StrId::STR_HIDE, StrId::S
 constexpr int STATUS_BAR_CLOCK_ITEMS = CrossPointSettings::STATUS_BAR_CLOCK_MODE_COUNT;
 const StrId statusBarClockNames[STATUS_BAR_CLOCK_ITEMS] = {StrId::STR_HIDE, StrId::STR_DIR_RIGHT, StrId::STR_DIR_LEFT};
 
+constexpr int STATUS_BAR_TIMER_ITEMS = CrossPointSettings::STATUS_BAR_TIMER_MODE_COUNT;
+const StrId statusBarTimerNames[STATUS_BAR_TIMER_ITEMS] = {StrId::STR_HIDE, StrId::STR_DIR_RIGHT, StrId::STR_DIR_LEFT};
+
 const int verticalPreviewTextPadding = 40;
 }  // namespace
 
@@ -124,6 +128,10 @@ void StatusBarSettingsActivity::onEnter() {
 
   if (SETTINGS.statusBarClock >= STATUS_BAR_CLOCK_ITEMS) {
     SETTINGS.statusBarClock = CrossPointSettings::STATUS_BAR_CLOCK_MODE::STATUS_BAR_CLOCK_HIDE;
+  }
+
+  if (SETTINGS.statusBarTimer >= STATUS_BAR_TIMER_ITEMS) {
+    SETTINGS.statusBarTimer = CrossPointSettings::STATUS_BAR_TIMER_MODE::STATUS_BAR_TIMER_HIDE;
   }
 
   // Labels never change (unlike the values, which track live SETTINGS
@@ -180,7 +188,7 @@ void StatusBarSettingsActivity::handleSelection() {
       SETTINGS.statusBarBattery = (SETTINGS.statusBarBattery + 1) % 2;
       break;
     case ITEM_TIMER_REMAINING:
-      SETTINGS.statusBarTimerRemaining = (SETTINGS.statusBarTimerRemaining + 1) % 2;
+      SETTINGS.statusBarTimer = (SETTINGS.statusBarTimer + 1) % STATUS_BAR_TIMER_ITEMS;
       break;
     case ITEM_XTC_STATUS_BAR:
       optionPopup.show(StrId::STR_XTC_STATUS_BAR, xtcStatusBarNames, XTC_STATUS_BAR_ITEMS, SETTINGS.xtcStatusBarMode,
@@ -223,7 +231,7 @@ std::string StatusBarSettingsActivity::rowValueText(const int index) {
     case ITEM_BATTERY:
       return SETTINGS.statusBarBattery ? tr(STR_SHOW) : tr(STR_HIDE);
     case ITEM_TIMER_REMAINING:
-      return SETTINGS.statusBarTimerRemaining ? tr(STR_SHOW) : tr(STR_HIDE);
+      return I18N.get(statusBarTimerNames[SETTINGS.statusBarTimer]);
     case ITEM_XTC_STATUS_BAR:
       return I18N.get(xtcStatusBarNames[SETTINGS.xtcStatusBarMode]);
     case ITEM_CLOCK:
@@ -299,8 +307,15 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
     title = tr(STR_EXAMPLE_CHAPTER);
   }
 
+  char timerPreviewText[32] = {};
+  const char* timerPreview = nullptr;
+  if (SETTINGS.statusBarTimer != CrossPointSettings::STATUS_BAR_TIMER_MODE::STATUS_BAR_TIMER_HIDE) {
+    std::snprintf(timerPreviewText, sizeof(timerPreviewText), tr(STR_TIMER_MINUTES_SHORT_FORMAT), 12UL);
+    timerPreview = timerPreviewText;
+  }
+
   // Anchor the preview as a footer directly above the button hints.
-  GUI.drawStatusBar(renderer, 75, 8, 32, title, metrics.buttonHintsHeight, 0, false);
+  GUI.drawStatusBar(renderer, 75, 8, 32, title, metrics.buttonHintsHeight, 0, false, false, false, timerPreview);
 
   renderer.drawCenteredText(UI_10_FONT_ID,
                             renderer.getScreenHeight() - UITheme::getInstance().getStatusBarHeight() -

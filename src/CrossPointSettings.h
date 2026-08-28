@@ -58,6 +58,13 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     STATUS_BAR_CLOCK_MODE_COUNT
   };
 
+  enum STATUS_BAR_TIMER_MODE {
+    STATUS_BAR_TIMER_HIDE = 0,
+    STATUS_BAR_TIMER_RIGHT = 1,
+    STATUS_BAR_TIMER_LEFT = 2,
+    STATUS_BAR_TIMER_MODE_COUNT
+  };
+
   enum ORIENTATION {
     PORTRAIT = 0,       // 480x800 logical coordinates (current default)
     LANDSCAPE_CW = 1,   // 800x480 logical coordinates, rotated 180° (swap top/bottom)
@@ -212,7 +219,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t statusBarProgressBarThickness = PROGRESS_BAR_NORMAL;
   uint8_t statusBarTitle = CHAPTER_TITLE;
   uint8_t statusBarBattery = 1;
-  uint8_t statusBarTimerRemaining = 0;
+  uint8_t statusBarTimer = STATUS_BAR_TIMER_HIDE;
   uint8_t xtcStatusBarMode = XTC_STATUS_BAR_HIDE;
   // Clock display in status bar (X3 only, requires DS3231 RTC)
   uint8_t statusBarClock = STATUS_BAR_CLOCK_HIDE;
@@ -361,7 +368,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     bool showBatteryPercent = false;
     uint8_t clockMode = STATUS_BAR_CLOCK_HIDE;  // STATUS_BAR_CLOCK_MODE
     bool clock12h = false;
-    bool showTimerRemaining = false;
+    uint8_t timerMode = STATUS_BAR_TIMER_HIDE;  // STATUS_BAR_TIMER_MODE
     uint8_t clockUtcOffsetQ = 48;             // 48 = UTC+0
     uint8_t progressBarMode = HIDE_PROGRESS;  // STATUS_BAR_PROGRESS_BAR
     uint8_t progressBarHeightPx = 0;          // (thickness+1)*2; 0 when the bar is hidden
@@ -370,10 +377,11 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     bool showsProgressBar() const { return progressBarMode != HIDE_PROGRESS; }
     bool showsTitle() const { return titleMode != HIDE_TITLE; }
     bool showsClock() const { return clockMode != STATUS_BAR_CLOCK_HIDE; }
+    bool showsTimerRemaining() const { return timerMode != STATUS_BAR_TIMER_HIDE; }
     // Visibility of the text lane. Clock hardware presence is the caller's
     // concern: pass halClock.isAvailable(), or true for layout reservation.
     bool textLaneVisible(bool clockAvailable) const {
-      return showChapterPageCount || showBookProgressPercent || showsTitle() || showBattery ||
+      return showChapterPageCount || showBookProgressPercent || showsTitle() || showBattery || showsTimerRemaining() ||
              (showsClock() && clockAvailable);
     }
   };
