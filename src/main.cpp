@@ -37,6 +37,7 @@
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "images/LoadingIcon.h"
+#include "platform/UsbSerialJtagHandoff.h"
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
 
@@ -190,6 +191,17 @@ void silentRestartToReader() {
   LOG_DBG("MAIN", "Silent restart (target=reader)");
   GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
   delay(50);
+  ESP.restart();
+}
+
+void restartToHomeAfterStorageHandoff() {
+  if (deepSleepInProgress) return;  // sleeping supersedes the storage handoff reboot
+  silentRebootTarget = SILENT_REBOOT_TARGET_HOME;
+  silentRebootMagic = SILENT_REBOOT_MAGIC;
+  LOG_DBG("MAIN", "Restart after storage handoff (target=home)");
+  GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
+  delay(50);
+  handoffUsbOtgToSerialJtag();
   ESP.restart();
 }
 
@@ -361,6 +373,7 @@ void setup() {
 
   const auto wakeupReason = gpio.getWakeupReason();
   if (wakeupReason == HalGPIO::WakeupReason::PowerButton && !gpio.verifyPowerButtonWakeup()) {
+    LOG_DBG("MAIN", "Power-button wake not held through verification, sleeping");
     powerManager.startDeepSleep(gpio);
   }
 
@@ -397,6 +410,13 @@ void setup() {
     LOG_INF("MAIN", "Recovery firmware mode (%s + POWER held at boot)", BoardConfig::isX4Pro() ? "DOWN" : "UP");
   }
 
+  // Touch boards default the reader menu to the toolbar overlay instead of the
+  // full-screen list. Seeded before the load: fromJson() falls back to the
+  // in-memory value only when the file carries no readerMenuStyle key, so a
+  // user's saved choice (either style) still wins.
+  if (gpio.hasTouch()) {
+    SETTINGS.readerMenuStyle = CrossPointSettings::READER_MENU_TOOLBAR;
+  }
   SETTINGS.loadFromFile();
   RECENT_BOOKS.loadFromFile();
   I18N.setLanguage(static_cast<Language>(SETTINGS.language));
@@ -416,11 +436,15 @@ void setup() {
       wakePowerReleasePending = true;
       break;
     case HalGPIO::WakeupReason::AfterUSBPower:
-      // If USB power caused a cold boot, go back to sleep
+      // Most devices return to sleep after a USB-powered cold boot.
       LOG_DBG("MAIN", "Wakeup reason: After USB Power");
-#if FREEINK_DEVICE_PAPERMONO
-      // There is no armable GPIO wake because the button is behind the PMIC.
-      // Sleeping here would strand the device in a USB-replug boot loop.
+#if FREEINK_DEVICE_X4PRO || FREEINK_DEVICE_PAPERMONO || FREEINK_DEVICE_EEGO_A4
+      // X4 Pro must stay awake so USB Serial/JTAG remains available after leaving
+      // USB Drive and reconnecting the cable. Paper Mono has no armable GPIO wake
+      // (its button is behind the PMIC). EEGO A4's post-flash reset reads as
+      // POWERON (native-USB), so a flash would otherwise be misclassified as a
+      // USB-power cold boot and sleep. Sleeping any of these here would strand
+      // the device in a USB-replug boot loop (or sleep right after a flash).
       break;
 #else
       powerManager.startDeepSleep(gpio);
@@ -545,7 +569,24 @@ void loop() {
   static unsigned long lastMemPrint = 0;
 
   gpio.setSharedConfirmPowerShortPressEmitsPower(SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP);
-  gpio.update();
+  mappedInputManager.update();
+
+  if (activityManager.requiresExclusiveStorageLoop()) {
+    // USB Drive handed the raw SD card to the host. Do not run screenshots,
+    // sleep, shortcuts, or normal navigation while its filesystem is detached.
+    activityManager.loop();
+    if (activityManager.preventAutoSleep()) {
+      powerManager.setPowerSaving(false);
+      delay(10);
+    } else {
+      // No host is active, so a slower loop is safe. The activity itself times
+      // out the raw-storage handoff rather than entering deep sleep detached.
+      powerManager.setPowerSaving(true);
+      delay(50);
+    }
+    return;
+  }
+
   halTiltSensor.update(SETTINGS.tiltPageTurn, SETTINGS.orientation, activityManager.isReaderActivity());
 
   renderer.setFadingFix(SETTINGS.fadingFix);
@@ -650,6 +691,7 @@ void loop() {
     if (gpio.isPressed(HalGPIO::BTN_DOWN)) {
       return;
     }
+    LOG_DBG("MAIN", "Power button held %lums, sleeping", gpio.getPowerButtonHeldTime());
     enterDeepSleep();
     // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
     return;

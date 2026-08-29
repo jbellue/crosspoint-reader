@@ -42,7 +42,36 @@ void drawBookmarkStatusIcon(const GfxRenderer& renderer, const int x, const int 
   }
 }
 
-}  // namespace
+void drawTimerHourglassIcon(const GfxRenderer& renderer, const int x, const int y, const int height, const int width) {
+  const int iconRightX = x + width;
+  const int iconBotY = y + height;
+  const int hLineThickness = 2;
+  for (int i = 0; i < hLineThickness; ++i) {
+    renderer.drawLine(x, y + i,        iconRightX, y + i       ); // top
+    renderer.drawLine(x, iconBotY - i, iconRightX, iconBotY - i); // bottom
+  }
+
+  const int quarterHeight = height / 4;
+  const int iconVLineYTop = y + hLineThickness;
+  const int iconDiagonalTopY = iconVLineYTop + quarterHeight;
+  const int iconVLineYBot = iconBotY - hLineThickness;
+  const int iconDiagonalBotY = iconVLineYBot - quarterHeight;
+  const int iconVLinessXOffset = 1;
+  const int iconVerticalsRight = iconRightX - iconVLinessXOffset;
+  const int iconVerticalsLeft = x + iconVLinessXOffset;
+
+  // Verticals
+  renderer.drawLine(iconVerticalsLeft,  iconVLineYTop,    iconVerticalsLeft,  iconDiagonalTopY); // left top
+  renderer.drawLine(iconVerticalsRight, iconVLineYTop,    iconVerticalsRight, iconDiagonalTopY); // right top
+  renderer.drawLine(iconVerticalsLeft,  iconDiagonalBotY, iconVerticalsLeft,  iconVLineYBot   ); // left bottom
+  renderer.drawLine(iconVerticalsRight, iconDiagonalBotY, iconVerticalsRight, iconVLineYBot   ); // right bottom
+
+  // Diagonals
+  renderer.drawLine(iconVerticalsLeft,  iconDiagonalTopY, iconVerticalsRight, iconDiagonalBotY);
+  renderer.drawLine(iconVerticalsRight, iconDiagonalTopY, iconVerticalsLeft,  iconDiagonalBotY);
+}
+
+} // namespace
 
 void BaseTheme::drawBatteryOutline(const GfxRenderer& renderer, int x, int y, int battWidth, int rectHeight) {
   // Top line
@@ -271,113 +300,6 @@ void BaseTheme::drawSideButtonHints(const GfxRenderer& renderer, const char* top
   }
 }
 
-int BaseTheme::getListRowStep(bool hasSubtitle) const {
-  int rowHeight = (hasSubtitle) ? BaseMetrics::values.listWithSubtitleRowHeight : BaseMetrics::values.listRowHeight;
-  return rowHeight;
-}
-
-int BaseTheme::getListPageItems(int contentHeight, bool hasSubtitle) const {
-  const int rowStep = getListRowStep(hasSubtitle);
-  if (rowStep <= 0) return 1;
-  return std::max(1, contentHeight / rowStep);
-}
-
-void BaseTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, int selectedIndex,
-                         const std::function<std::string(int index)>& rowTitle,
-                         const std::function<std::string(int index)>& rowSubtitle,
-                         const std::function<UIIcon(int index)>& rowIcon,
-                         const std::function<std::string(int index)>& rowValue, bool highlightValue,
-                         const std::function<bool(int index)>& rowDimmed) const {
-  int rowHeight =
-      (rowSubtitle != nullptr) ? BaseMetrics::values.listWithSubtitleRowHeight : BaseMetrics::values.listRowHeight;
-  int pageItems = rowHeight > 0 ? std::max(1, rect.height / rowHeight) : 1;
-
-  const int totalPages = (itemCount + pageItems - 1) / pageItems;
-  if (totalPages > 1) {
-    constexpr int indicatorWidth = 20;
-    constexpr int arrowSize = 6;
-    constexpr int margin = 15;  // Offset from right edge
-
-    const int centerX = rect.x + rect.width - indicatorWidth / 2 - margin;
-    const int indicatorTop = rect.y;  // Offset to avoid overlapping side button hints
-    const int indicatorBottom = rect.y + rect.height - arrowSize;
-
-    // Draw up arrow at top (^) - narrow point at top, wide base at bottom
-    for (int i = 0; i < arrowSize; ++i) {
-      const int lineWidth = 1 + i * 2;
-      const int startX = centerX - i;
-      renderer.drawLine(startX, indicatorTop + i, startX + lineWidth - 1, indicatorTop + i);
-    }
-
-    // Draw down arrow at bottom (v) - wide base at top, narrow point at bottom
-    for (int i = 0; i < arrowSize; ++i) {
-      const int lineWidth = 1 + (arrowSize - 1 - i) * 2;
-      const int startX = centerX - (arrowSize - 1 - i);
-      renderer.drawLine(startX, indicatorBottom - arrowSize + 1 + i, startX + lineWidth - 1,
-                        indicatorBottom - arrowSize + 1 + i);
-    }
-  }
-
-  // Draw selection
-  int contentWidth = rect.width - 5;
-  if (selectedIndex >= 0) {
-    renderer.fillRect(rect.x, rect.y + selectedIndex % pageItems * rowHeight - 2, rect.width, rowHeight);
-  }
-  constexpr int minValueGap = 10;
-
-  // Draw all items
-  const auto pageStartIndex = selectedIndex / pageItems * pageItems;
-  for (int i = pageStartIndex; i < itemCount && i < pageStartIndex + pageItems; i++) {
-    const int itemY = rect.y + (i % pageItems) * rowHeight;
-
-    int rowTextWidth = contentWidth - BaseMetrics::values.contentSidePadding * 2;
-    std::string valueText;
-    if (rowValue != nullptr) {
-      valueText = rowValue(i);
-      if (!valueText.empty()) {
-        int maxValW = std::max(0, rowTextWidth - 40 - minValueGap);
-        valueText = renderer.truncatedText(UI_10_FONT_ID, valueText.c_str(), maxValW);
-        int valueWidth = renderer.getTextWidth(UI_10_FONT_ID, valueText.c_str()) + minValueGap;
-        rowTextWidth -= valueWidth;
-      }
-    }
-
-    auto itemName = rowTitle(i);
-    auto font = UI_10_FONT_ID;
-    auto item = renderer.truncatedText(font, itemName.c_str(), rowTextWidth);
-    renderer.drawText(font, rect.x + BaseMetrics::values.contentSidePadding, itemY, item.c_str(), i != selectedIndex);
-
-    // Apply checkerboard dither to create gray text effect for dimmed items
-    if (rowDimmed && rowDimmed(i) && i != selectedIndex) {
-      const int titleWidth = renderer.getTextWidth(font, item.c_str());
-      const int lineH = renderer.getLineHeight(font);
-      const int tx = rect.x + BaseMetrics::values.contentSidePadding;
-      for (int py = itemY; py < itemY + lineH; py++)
-        for (int px = tx; px < tx + titleWidth; px++)
-          if ((px + py) % 2 == 0) renderer.drawPixel(px, py, false);
-    }
-
-    if (rowSubtitle != nullptr) {
-      std::string subtitleText = rowSubtitle(i);
-      if (!subtitleText.empty()) {
-        auto subtitle = renderer.truncatedText(SMALL_FONT_ID, subtitleText.c_str(), rowTextWidth);
-        renderer.drawText(SMALL_FONT_ID, rect.x + BaseMetrics::values.contentSidePadding, itemY + 22, subtitle.c_str(),
-                          i != selectedIndex);
-      }
-    }
-
-    if (!valueText.empty()) {
-      const auto valueTextWidth = renderer.getTextWidth(UI_10_FONT_ID, valueText.c_str());
-      int valueY = itemY;
-      if (rowSubtitle != nullptr) {
-        valueY = itemY + 10;
-      }
-      renderer.drawText(UI_10_FONT_ID, rect.x + contentWidth - BaseMetrics::values.contentSidePadding - valueTextWidth,
-                        valueY, valueText.c_str(), i != selectedIndex);
-    }
-  }
-}
-
 void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle) const {
   // Every activity header renders through the FreeInkUI header + battery
   // indicator components, styled by the active theme's tokens (padding,
@@ -507,59 +429,6 @@ void BaseTheme::drawSubHeader(const GfxRenderer& renderer, Rect rect, const char
   auto truncatedLabel = renderer.truncatedText(
       UI_12_FONT_ID, label, rect.width - BaseMetrics::values.contentSidePadding - rightSpace, EpdFontFamily::REGULAR);
   renderer.drawText(UI_12_FONT_ID, currentX, rect.y, truncatedLabel.c_str(), true, EpdFontFamily::REGULAR);
-}
-
-void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const std::vector<TabInfo>& tabs,
-                           bool selected) const {
-  constexpr int underlineHeight = 2;  // Height of selection underline
-  constexpr int underlineGap = 4;     // Gap between text and underline
-
-  const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
-
-  int currentX = rect.x + BaseMetrics::values.contentSidePadding;
-
-  for (const auto& tab : tabs) {
-    const int textWidth =
-        renderer.getTextWidth(UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
-
-    // Draw underline for selected tab
-    if (tab.selected) {
-      if (selected) {
-        renderer.fillRect(currentX - 3, rect.y, textWidth + 6, lineHeight + underlineGap);
-      } else {
-        renderer.fillRect(currentX, rect.y + lineHeight + underlineGap, textWidth, underlineHeight);
-      }
-    }
-
-    // Draw tab label
-    renderer.drawText(UI_12_FONT_ID, currentX, rect.y, tab.label, !(tab.selected && selected),
-                      tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
-
-    currentX += textWidth + BaseMetrics::values.tabSpacing;
-  }
-}
-
-bool BaseTheme::tabIndexFromPoint(const GfxRenderer& renderer, const Rect rect, const std::vector<TabInfo>& tabs,
-                                  const int x, const int y, int& index) const {
-  if (tabs.empty() || y < rect.y || y >= rect.y + rect.height) {
-    return false;
-  }
-
-  int currentX = rect.x + BaseMetrics::values.contentSidePadding;
-  for (size_t i = 0; i < tabs.size(); i++) {
-    const auto& tab = tabs[i];
-    const int textWidth =
-        renderer.getTextWidth(UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
-    const int left = (i == 0) ? rect.x : currentX - BaseMetrics::values.tabSpacing / 2;
-    const int right = currentX + textWidth + BaseMetrics::values.tabSpacing / 2;
-    if (x >= left && x < right) {
-      index = static_cast<int>(i);
-      return true;
-    }
-    currentX += textWidth + BaseMetrics::values.tabSpacing;
-  }
-
-  return false;
 }
 
 // Draw the "Recent Book" cover card on the home screen
@@ -881,7 +750,8 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
                               const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
-                              const bool fillMargin, const bool isPageBookmarked, const bool pageCountEstimated) const {
+                              const bool fillMargin, const bool isPageBookmarked,
+                              const bool pageCountEstimated, const char* timerText) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -946,6 +816,13 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     renderer.fillRect(barMarginLeft, progressBarY, barWidth, barHeight, true);
   }
 
+  // Draw Bookmark
+  if (showStatusBarTextLane && isPageBookmarked) {
+    const int bookmarkY = textY + 5;
+    drawBookmarkStatusIcon(renderer, leftClusterX, bookmarkY);
+    leftClusterWidth += bookmarkStatusIconWidth + bookmarkStatusIconGap;
+  }
+
   // Draw Battery
   const bool showBatteryPercentage = sb.showBatteryPercent;
 
@@ -983,13 +860,31 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     }
   }
 
-  // Draw Bookmark
-  if (showStatusBarTextLane && isPageBookmarked) {
-    const int bookmarkGap = leftClusterWidth > 0 ? bookmarkStatusIconGap : 0;
-    const int bookmarkX = leftClusterX + leftClusterWidth + bookmarkGap;
-    const int bookmarkY = textY + 5;
-    drawBookmarkStatusIcon(renderer, bookmarkX, bookmarkY);
-    leftClusterWidth += bookmarkStatusIconWidth + bookmarkGap;
+  // Draw Timer Remaining (left or right side with small clock icon)
+  if (sb.showsTimerRemaining() && timerText != nullptr && timerText[0] != '\0') {
+    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+    const int timerHourglassIconWidth = textHeight / 2;  // 50% of font height
+    const int timerHourglassIconGap = 4;
+    const int timerHourglassWidth = timerHourglassIconWidth + timerHourglassIconGap;
+    const int timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timerText);
+    // Keep the timer lane aligned with the status-bar typography: derive the
+    // inter-element gap from the small-font metrics, not a brittle constant.
+    const int clusterGap = std::max(4, textHeight / 2);
+    int iconX = 0;
+    int textX = 0;
+
+    if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_LEFT) {
+      iconX = leftClusterX + leftClusterWidth + (leftClusterWidth > 0 ? clusterGap : 0);
+      textX = iconX + timerHourglassWidth;
+      leftClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
+    } else if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_RIGHT) {
+      textX = rightClusterX - rightClusterWidth - (rightClusterWidth > 0 ? clusterGap : 0) - timerTextWidth;
+      iconX = textX - timerHourglassWidth;
+      rightClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
+    }
+
+    drawTimerHourglassIcon(renderer, iconX, textY + 5, textHeight - 5, timerHourglassIconWidth);
+    renderer.drawText(SMALL_FONT_ID, textX, textY, timerText);
   }
 
   // Draw Title
@@ -1047,101 +942,5 @@ void BaseTheme::drawTextField(const GfxRenderer& renderer, Rect rect, const int 
     const int lineW = textWidth + metrics.textFieldHorizontalPadding * 2;
     const int lineStart = rect.x + (rect.width - lineW) / 2;
     renderer.drawLine(lineStart, lineY, lineStart + lineW + metrics.textFieldLineEndOffset, lineY, thickness, true);
-  }
-}
-
-void BaseTheme::drawOptionPopup(const GfxRenderer& renderer, const char* title, const std::vector<std::string>& options,
-                                int selectedIndex) const {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto pageHeight = renderer.getScreenHeight();
-
-  const int optionFontId = metrics.optionPopupUseSmallFont ? UI_10_FONT_ID : UI_12_FONT_ID;
-  const EpdFontFamily::Style optionStyle =
-      metrics.optionPopupOptionFontBold ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR;
-
-  const int itemSpacing = metrics.optionPopupItemSpacing;
-  const int innerPadding = metrics.optionPopupInnerPadding;
-  const int selectionHPadding = metrics.optionPopupSelectionHPadding;
-  const int selectionVPadding = metrics.optionPopupSelectionVPadding;
-
-  const int optionLineHeight = renderer.getLineHeight(optionFontId);
-  const int titleLineHeight = renderer.getLineHeight(UI_12_FONT_ID);
-  const int rowHeight = optionLineHeight + selectionVPadding * 2;
-
-  int maxTextWidth = renderer.getTextWidth(UI_12_FONT_ID, title, EpdFontFamily::BOLD);
-  for (const auto& opt : options) {
-    int w = renderer.getTextWidth(optionFontId, opt.c_str(), optionStyle);
-    if (w > maxTextWidth) maxTextWidth = w;
-  }
-
-  const int optionCount = static_cast<int>(options.size());
-  const int listHeight = rowHeight * optionCount + itemSpacing * (optionCount - 1);
-  const int dialogW = std::min((maxTextWidth + innerPadding * 2 + selectionHPadding * 2) * 12 / 10,
-                               pageWidth - metrics.optionPopupDialogSideMargin * 2);
-  const int contentHeight = titleLineHeight + metrics.optionPopupTitleGap + listHeight;
-  const int dialogH = contentHeight + innerPadding * 2;
-  const int dialogX = (pageWidth - dialogW) / 2;
-  const int dialogY = (pageHeight - dialogH) / 2;
-
-  const int frameThickness = metrics.popupFrameThickness;
-  const int frameRadius = metrics.popupCornerRadius;
-
-  if (frameRadius > 0) {
-    renderer.fillRoundedRect(dialogX - frameThickness, dialogY - frameThickness, dialogW + frameThickness * 2,
-                             dialogH + frameThickness * 2, frameRadius + frameThickness, Color::White);
-    renderer.fillRoundedRect(dialogX, dialogY, dialogW, dialogH, frameRadius, Color::Black);
-    renderer.fillRoundedRect(dialogX + frameThickness, dialogY + frameThickness, dialogW - frameThickness * 2,
-                             dialogH - frameThickness * 2,
-                             frameRadius - frameThickness > 0 ? frameRadius - frameThickness : 0, Color::White);
-  } else {
-    renderer.fillRect(dialogX - frameThickness, dialogY - frameThickness, dialogW + frameThickness * 2,
-                      dialogH + frameThickness * 2, true);
-    renderer.fillRect(dialogX, dialogY, dialogW, dialogH, false);
-  }
-
-  int y = dialogY + innerPadding;
-
-  renderer.drawCenteredText(UI_12_FONT_ID, y, title, true, EpdFontFamily::BOLD);
-  y += titleLineHeight;
-
-  if (metrics.optionPopupTitleSeparator) {
-    const int sepY = y + metrics.optionPopupTitleGap / 2;
-    renderer.drawLine(dialogX + innerPadding, sepY, dialogX + dialogW - innerPadding, sepY, true);
-  }
-
-  y += metrics.optionPopupTitleGap;
-
-  const int itemRectX = dialogX + innerPadding;
-  const int itemRectW = dialogW - innerPadding * 2;
-  const int selectionRadius = metrics.optionPopupSelectionRadius;
-
-  for (int i = 0; i < optionCount; i++) {
-    const int itemY = y + i * (rowHeight + itemSpacing);
-    const bool selected = (i == selectedIndex);
-    const char* labelText = options[i].c_str();
-
-    if (metrics.optionPopupDrawAllRows || selected) {
-      Color rowColor;
-      if (selected) {
-        rowColor = metrics.optionPopupSelectionLight ? Color::LightGray : Color::Black;
-      } else {
-        rowColor = Color::White;
-      }
-      if (selectionRadius > 0) {
-        renderer.fillRoundedRect(itemRectX, itemY, itemRectW, rowHeight, selectionRadius, rowColor);
-      } else {
-        renderer.fillRect(itemRectX, itemY, itemRectW, rowHeight, rowColor == Color::Black);
-      }
-    }
-
-    const int textW = renderer.getTextWidth(optionFontId, labelText, optionStyle);
-    const int textY = itemY + (rowHeight - optionLineHeight) / 2;
-    const int textX = itemRectX + (itemRectW - textW) / 2;
-    // Unselected items: text is dark (invert=true means draw on white bg).
-    // Selected on dark bg: text must be white (invert=false).
-    // Selected on light bg: text stays dark (invert=true).
-    const bool invertText = selected ? metrics.optionPopupSelectionLight : true;
-    renderer.drawText(optionFontId, textX, textY, labelText, invertText, optionStyle);
   }
 }

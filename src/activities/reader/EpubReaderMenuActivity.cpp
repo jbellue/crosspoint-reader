@@ -5,6 +5,7 @@
 #include <I18n.h>
 
 #include "CrossPointSettings.h"
+#include "EpubReaderTimerActivity.h"
 #include "MappedInputManager.h"
 #include "ReaderUtils.h"
 #include "components/UITheme.h"
@@ -14,14 +15,24 @@ namespace fui = freeink::ui;
 EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
-                                               const bool hasFootnotes, const bool hasBookmarks)
+                                               const bool hasFootnotes, const bool hasBookmarks,
+                                               const char* timerMenuLabel,
+                                               const ReaderTimerMode currentTimerMode,
+                                               const uint32_t currentTimerValue,
+                                               const bool hasRunningTimer)
     : UiListActivity("EpubReaderMenu", renderer, mappedInput),
-      menuItems(buildMenuItems(hasFootnotes, hasBookmarks)),
       title(title),
+      currentTimerMode(currentTimerMode),
+      currentTimerValue(currentTimerValue),
+      hasRunningTimer(hasRunningTimer),
       pendingOrientation(currentOrientation),
       currentPage(currentPage),
       totalPages(totalPages),
       bookProgressPercent(bookProgressPercent) {
+  if (timerMenuLabel != nullptr) {
+    std::snprintf(this->timerMenuLabel, sizeof(this->timerMenuLabel), "%s", timerMenuLabel);
+  }
+  buildMenuItems(menuItems, hasFootnotes, hasBookmarks);
   buildMenuRowItems();
 }
 
@@ -31,15 +42,18 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
 void EpubReaderMenuActivity::buildMenuRowItems() {
   for (size_t i = 0; i < menuItems.size() && i < MAX_MENU_ITEMS; i++) {
     fui::ListItem item;
-    item.label = I18N.get(menuItems[i].labelId);
+    if (menuItems[i].action == MenuAction::TIMER && this->timerMenuLabel[0] != '\0') {
+      item.label = this->timerMenuLabel;
+    } else {
+      item.label = I18N.get(menuItems[i].labelId);
+    }
     item.actionValue = static_cast<int16_t>(i);
     menuRowItems[i] = item;
   }
 }
 
-std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes,
-                                                                                     bool hasBookmarks) {
-  std::vector<MenuItem> items;
+void EpubReaderMenuActivity::buildMenuItems(std::vector<MenuItem>& items, bool hasFootnotes, bool hasBookmarks) {
+  items.clear();
   items.reserve(MAX_MENU_ITEMS);
   items.push_back({MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER});
   if (hasFootnotes) {
@@ -49,6 +63,7 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
     items.push_back({MenuAction::BOOKMARKS, StrId::STR_BOOKMARKS});
   }
   items.push_back({MenuAction::TOGGLE_BOOKMARK, StrId::STR_TOGGLE_BOOKMARK});
+  items.push_back({MenuAction::TIMER, StrId::STR_TIMER});
   items.push_back({MenuAction::TEXT_SETTINGS, StrId::STR_TEXT_SETTINGS});
   items.push_back({MenuAction::NIGHT_MODE, StrId::STR_NIGHT_MODE});
   if (Frontlight.present()) {
@@ -63,7 +78,6 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   items.push_back({MenuAction::GO_HOME, StrId::STR_GO_HOME_BUTTON});
   items.push_back({MenuAction::SYNC, StrId::STR_SYNC_PROGRESS});
   items.push_back({MenuAction::DELETE_CACHE, StrId::STR_DELETE_CACHE});
-  return items;
 }
 
 void EpubReaderMenuActivity::closeCancelled() {
@@ -128,7 +142,26 @@ void EpubReaderMenuActivity::activateIndex(const int index) {
     return;
   }
 
-  setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption});
+  if (selectedAction == MenuAction::TIMER) {
+    startActivityForResult(
+        std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, currentTimerMode, currentTimerValue,
+                                                  StrId::STR_TIMER, hasRunningTimer),
+        [this](const ActivityResult& timerResult) {
+          if (timerResult.isCancelled) {
+            requestUpdate();
+            return;
+          }
+
+          const auto timerConfig = std::get<ReaderTimerConfigResult>(timerResult.data);
+          setResult(MenuResult{static_cast<int>(MenuAction::TIMER), pendingOrientation, selectedPageTurnOption,
+                               timerConfig});
+          finish();
+        });
+    return;
+  }
+
+  setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption,
+                       {ReaderTimerMode::Off, 0}});
   finish();
 }
 
@@ -179,10 +212,14 @@ void EpubReaderMenuActivity::buildScreen(UiScreen& screen) {
       menuRowItems[i].value = I18N.get(orientationLabels[pendingOrientation]);
     } else if (action == MenuAction::AUTO_PAGE_TURN) {
       menuRowItems[i].value = pageTurnLabels[selectedPageTurnOption];
+    } else if (action == MenuAction::TIMER) {
+      menuRowItems[i].value = nullptr;
     } else if (action == MenuAction::NIGHT_MODE) {
       menuRowItems[i].value = I18N.get(SETTINGS.screenInverted ? StrId::STR_STATE_ON : StrId::STR_STATE_OFF);
     } else if (action == MenuAction::FRONTLIGHT) {
       menuRowItems[i].value = I18N.get(Frontlight.isOn() ? StrId::STR_STATE_ON : StrId::STR_STATE_OFF);
+    } else {
+      menuRowItems[i].value = nullptr;
     }
   }
 
