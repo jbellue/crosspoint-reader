@@ -42,7 +42,36 @@ void drawBookmarkStatusIcon(const GfxRenderer& renderer, const int x, const int 
   }
 }
 
-}  // namespace
+void drawTimerHourglassIcon(const GfxRenderer& renderer, const int x, const int y, const int height, const int width) {
+  const int iconRightX = x + width;
+  const int iconBotY = y + height;
+  const int hLineThickness = 2;
+  for (int i = 0; i < hLineThickness; ++i) {
+    renderer.drawLine(x, y + i,        iconRightX, y + i       ); // top
+    renderer.drawLine(x, iconBotY - i, iconRightX, iconBotY - i); // bottom
+  }
+
+  const int quarterHeight = height / 4;
+  const int iconVLineYTop = y + hLineThickness;
+  const int iconDiagonalTopY = iconVLineYTop + quarterHeight;
+  const int iconVLineYBot = iconBotY - hLineThickness;
+  const int iconDiagonalBotY = iconVLineYBot - quarterHeight;
+  const int iconVLinessXOffset = 1;
+  const int iconVerticalsRight = iconRightX - iconVLinessXOffset;
+  const int iconVerticalsLeft = x + iconVLinessXOffset;
+
+  // Verticals
+  renderer.drawLine(iconVerticalsLeft,  iconVLineYTop,    iconVerticalsLeft,  iconDiagonalTopY); // left top
+  renderer.drawLine(iconVerticalsRight, iconVLineYTop,    iconVerticalsRight, iconDiagonalTopY); // right top
+  renderer.drawLine(iconVerticalsLeft,  iconDiagonalBotY, iconVerticalsLeft,  iconVLineYBot   ); // left bottom
+  renderer.drawLine(iconVerticalsRight, iconDiagonalBotY, iconVerticalsRight, iconVLineYBot   ); // right bottom
+
+  // Diagonals
+  renderer.drawLine(iconVerticalsLeft,  iconDiagonalTopY, iconVerticalsRight, iconDiagonalBotY);
+  renderer.drawLine(iconVerticalsRight, iconDiagonalTopY, iconVerticalsLeft,  iconDiagonalBotY);
+}
+
+} // namespace
 
 void BaseTheme::drawBatteryOutline(const GfxRenderer& renderer, int x, int y, int battWidth, int rectHeight) {
   // Top line
@@ -834,34 +863,28 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   // Draw Timer Remaining (left or right side with small clock icon)
   if (sb.showsTimerRemaining() && timerText != nullptr && timerText[0] != '\0') {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
-    const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
-    const int iconSize = std::max(8, textHeight - 2);
-    const int iconGap = 4;
-    const int descenderOffset = std::max(0, lineHeight - textHeight) / 2;
+    const int timerHourglassIconWidth = textHeight / 2;  // 50% of font height
+    const int timerHourglassIconGap = 4;
+    const int timerHourglassWidth = timerHourglassIconWidth + timerHourglassIconGap;
     const int timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timerText);
-    const int timerBlockWidth = iconSize + iconGap + timerTextWidth;
+    // Keep the timer lane aligned with the status-bar typography: derive the
+    // inter-element gap from the small-font metrics, not a brittle constant.
+    const int clusterGap = std::max(4, textHeight / 2);
+    int iconX = 0;
+    int textX = 0;
 
-    int timerX = 0;
     if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_LEFT) {
-      const int timerGapFromLeftCluster = (leftClusterWidth > 0) ? 6 : 0;
-      timerX = leftClusterX + leftClusterWidth + timerGapFromLeftCluster;
-      leftClusterWidth += timerBlockWidth + timerGapFromLeftCluster;
+      iconX = leftClusterX + leftClusterWidth + (leftClusterWidth > 0 ? clusterGap : 0);
+      textX = iconX + timerHourglassWidth;
+      leftClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
     } else if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_RIGHT) {
-      const int timerGapFromRightCluster = (rightClusterWidth > 0) ? 6 : 0;
-      timerX = rightClusterX - rightClusterWidth - timerGapFromRightCluster - timerBlockWidth;
-      rightClusterWidth += timerBlockWidth + timerGapFromRightCluster;
+      textX = rightClusterX - rightClusterWidth - (rightClusterWidth > 0 ? clusterGap : 0) - timerTextWidth;
+      iconX = textX - timerHourglassWidth;
+      rightClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
     }
 
-    const int iconY = textY + (textHeight - iconSize) / 2 + descenderOffset;
-
-    const int clockRadius = std::max(1, iconSize / 2);
-    renderer.drawRoundedRect(timerX, iconY, iconSize, iconSize, 1, clockRadius, true);
-    // Clock hands
-    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize / 2, iconY + 2);
-    renderer.drawLine(timerX + iconSize / 2, iconY + iconSize / 2, timerX + iconSize - 5, iconY + iconSize / 2);
-
-    const int timerTextX = timerX + iconSize + iconGap;
-    renderer.drawText(SMALL_FONT_ID, timerTextX, textY, timerText);
+    drawTimerHourglassIcon(renderer, iconX, textY + 5, textHeight - 5, timerHourglassIconWidth);
+    renderer.drawText(SMALL_FONT_ID, textX, textY, timerText);
   }
 
   // Draw Title
