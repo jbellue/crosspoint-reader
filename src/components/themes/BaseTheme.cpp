@@ -42,7 +42,36 @@ void drawBookmarkStatusIcon(const GfxRenderer& renderer, const int x, const int 
   }
 }
 
-}  // namespace
+void drawTimerHourglassIcon(const GfxRenderer& renderer, const int x, const int y, const int height, const int width) {
+  const int iconRightX = x + width;
+  const int iconBotY = y + height;
+  const int hLineThickness = 2;
+  for (int i = 0; i < hLineThickness; ++i) {
+    renderer.drawLine(x, y + i,        iconRightX, y + i       ); // top
+    renderer.drawLine(x, iconBotY - i, iconRightX, iconBotY - i); // bottom
+  }
+
+  const int quarterHeight = height / 4;
+  const int iconVLineYTop = y + hLineThickness;
+  const int iconDiagonalTopY = iconVLineYTop + quarterHeight;
+  const int iconVLineYBot = iconBotY - hLineThickness;
+  const int iconDiagonalBotY = iconVLineYBot - quarterHeight;
+  const int iconVLinessXOffset = 1;
+  const int iconVerticalsRight = iconRightX - iconVLinessXOffset;
+  const int iconVerticalsLeft = x + iconVLinessXOffset;
+
+  // Verticals
+  renderer.drawLine(iconVerticalsLeft,  iconVLineYTop,    iconVerticalsLeft,  iconDiagonalTopY); // left top
+  renderer.drawLine(iconVerticalsRight, iconVLineYTop,    iconVerticalsRight, iconDiagonalTopY); // right top
+  renderer.drawLine(iconVerticalsLeft,  iconDiagonalBotY, iconVerticalsLeft,  iconVLineYBot   ); // left bottom
+  renderer.drawLine(iconVerticalsRight, iconDiagonalBotY, iconVerticalsRight, iconVLineYBot   ); // right bottom
+
+  // Diagonals
+  renderer.drawLine(iconVerticalsLeft,  iconDiagonalTopY, iconVerticalsRight, iconDiagonalBotY);
+  renderer.drawLine(iconVerticalsRight, iconDiagonalTopY, iconVerticalsLeft,  iconDiagonalBotY);
+}
+
+} // namespace
 
 void BaseTheme::drawBatteryOutline(const GfxRenderer& renderer, int x, int y, int battWidth, int rectHeight) {
   // Top line
@@ -753,7 +782,8 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
                               const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
-                              const bool fillMargin, const bool isPageBookmarked, const bool pageCountEstimated) {
+                              const bool fillMargin, const bool isPageBookmarked,
+                              const bool pageCountEstimated, const char* timerText) const {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -818,6 +848,13 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     renderer.fillRect(barMarginLeft, progressBarY, barWidth, barHeight, true);
   }
 
+  // Draw Bookmark
+  if (showStatusBarTextLane && isPageBookmarked) {
+    const int bookmarkY = textY + 5;
+    drawBookmarkStatusIcon(renderer, leftClusterX, bookmarkY);
+    leftClusterWidth += bookmarkStatusIconWidth + bookmarkStatusIconGap;
+  }
+
   // Draw Battery
   const bool showBatteryPercentage = sb.showBatteryPercent;
 
@@ -855,13 +892,31 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     }
   }
 
-  // Draw Bookmark
-  if (showStatusBarTextLane && isPageBookmarked) {
-    const int bookmarkGap = leftClusterWidth > 0 ? bookmarkStatusIconGap : 0;
-    const int bookmarkX = leftClusterX + leftClusterWidth + bookmarkGap;
-    const int bookmarkY = textY + 5;
-    drawBookmarkStatusIcon(renderer, bookmarkX, bookmarkY);
-    leftClusterWidth += bookmarkStatusIconWidth + bookmarkGap;
+  // Draw Timer Remaining (left or right side with small clock icon)
+  if (sb.showsTimerRemaining() && timerText != nullptr && timerText[0] != '\0') {
+    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+    const int timerHourglassIconWidth = textHeight / 2;  // 50% of font height
+    const int timerHourglassIconGap = 4;
+    const int timerHourglassWidth = timerHourglassIconWidth + timerHourglassIconGap;
+    const int timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timerText);
+    // Keep the timer lane aligned with the status-bar typography: derive the
+    // inter-element gap from the small-font metrics, not a brittle constant.
+    const int clusterGap = std::max(4, textHeight / 2);
+    int iconX = 0;
+    int textX = 0;
+
+    if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_LEFT) {
+      iconX = leftClusterX + leftClusterWidth + (leftClusterWidth > 0 ? clusterGap : 0);
+      textX = iconX + timerHourglassWidth;
+      leftClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
+    } else if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_RIGHT) {
+      textX = rightClusterX - rightClusterWidth - (rightClusterWidth > 0 ? clusterGap : 0) - timerTextWidth;
+      iconX = textX - timerHourglassWidth;
+      rightClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
+    }
+
+    drawTimerHourglassIcon(renderer, iconX, textY + 5, textHeight - 5, timerHourglassIconWidth);
+    renderer.drawText(SMALL_FONT_ID, textX, textY, timerText);
   }
 
   // Draw Title
@@ -899,7 +954,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   }
 }
 
-void BaseTheme::drawHelpText(const GfxRenderer& renderer, Rect rect, const char* label) {
+void BaseTheme::drawHelpText(const GfxRenderer& renderer, Rect rect, const char* label) const {
   const auto& metrics = UITheme::getInstance().getMetrics();
   auto truncatedLabel =
       renderer.truncatedText(SMALL_FONT_ID, label, rect.width - metrics.contentSidePadding * 2, EpdFontFamily::REGULAR);

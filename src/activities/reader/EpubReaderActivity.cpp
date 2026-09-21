@@ -15,6 +15,7 @@
 #include <esp_system.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <functional>
 #include <iterator>
 #include <limits>
@@ -28,6 +29,8 @@
 #include "EpubReaderChapterSelectionActivity.h"
 #include "EpubReaderFootnotesActivity.h"
 #include "EpubReaderPercentSelectionActivity.h"
+#include "EpubReaderTimerActivity.h"
+#include "EpubReaderTimerPromptActivity.h"
 #include "EpubReaderUtils.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
@@ -46,6 +49,8 @@
 #include "util/BookmarkUtil.h"
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
+
+extern void enterDeepSleep(bool fromTimeout);
 
 namespace {
 // The X4 Pro and X4 Classic carry the X4's panel but sit outside isXteinkDevice()
@@ -273,29 +278,45 @@ void EpubReaderActivity::openReaderMenu() {
     requestUpdate();
     return;
   }
-
-  // Child screens (chapter list, text settings) release the section to free its
-  // pagination buffers; chapterPosition() covers that with the cached position.
+  // Child screens (chapter list, text settings) can release the section to
+  // free pagination buffers, so derive page counters from the cached position.
   const ChapterPosition position = chapterPosition();
   const int bookProgressPercent = bookPercentFor(position);
 
-  startActivityForResult(
-      std::make_unique<EpubReaderMenuActivity>(renderer, mappedInput, epub->getTitle(), position.displayPage(),
-                                               position.totalPages, bookProgressPercent, SETTINGS.orientation,
-                                               !currentPageFootnotes.empty(), !cachedBookmarks.empty()),
-      [this](const ActivityResult& result) {
-        const auto& menu = std::get<MenuResult>(result.data);
+  char timerRemaining[32] = {};
+  const bool hasRunningTimer = readerTimer.isTimerActive();
+  const bool hasTimerText = hasRunningTimer && readerTimer.formatRemaining(timerRemaining, sizeof(timerRemaining), true);
 
-        if (SETTINGS.orientation != menu.orientation) {
-          applyOrientation(menu.orientation);
-        }
+  char timerMenuLabel[64] = {};
+  if (hasTimerText) {
+    std::snprintf(timerMenuLabel, sizeof(timerMenuLabel), tr(STR_TIMER_MENU_REMAINING_FORMAT), timerRemaining);
+  } else {
+    std::snprintf(timerMenuLabel, sizeof(timerMenuLabel), "%s", tr(STR_START_TIMER));
+  }
 
-        toggleAutoPageTurn(menu.pageTurnOption);
-
-        if (!result.isCancelled) {
-          onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
-        }
-      });
+  startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
+                             renderer, mappedInput, epub->getTitle(), position.displayPage(), position.totalPages,
+                             bookProgressPercent, SETTINGS.orientation, !currentPageFootnotes.empty(),
+                             !cachedBookmarks.empty(), timerMenuLabel, readerTimer.getMode(),
+                             readerTimer.getSelectedValue(), hasRunningTimer),
+                         [this](const ActivityResult& result) {
+                           const auto& menu = std::get<MenuResult>(result.data);
+                           if (SETTINGS.orientation != menu.orientation) {
+                             applyOrientation(menu.orientation);
+                           }
+                           toggleAutoPageTurn(menu.pageTurnOption);
+                           if (!result.isCancelled) {
+                             const auto action = static_cast<EpubReaderMenuActivity::MenuAction>(menu.action);
+                             if (action == EpubReaderMenuActivity::MenuAction::TIMER) {
+                               readerTimer.applyTimerConfig(menu.timerConfig, currentSpineIndex,
+                                                            section ? section->currentPage : nextPageNumber);
+                               ignoreNextConfirmRelease = true;
+                               requestUpdate();
+                             } else {
+                               onReaderMenuConfirm(action);
+                             }
+                           }
+                         });
 }
 
 bool EpubReaderActivity::buildTickHeapGate() {
@@ -338,6 +359,40 @@ void EpubReaderActivity::loop() {
   if (!epub) {
     finish();
     return;
+  }
+
+  if (pendingTimerSleepRequest) {
+    pendingTimerSleepRequest = false;
+    enterDeepSleep(false);
+    return;
+  }
+
+  readerTimer.tickTimeTimer();
+  if (readerTimer.hasExpiryPromptPending()) {
+    openTimerExpiryPrompt();
+    return;
+  }
+
+  if (pendingTimerSleepRequest) {
+    pendingTimerSleepRequest = false;
+    enterDeepSleep(false);
+    return;
+  }
+
+  readerTimer.tickTimeTimer();
+  if (readerTimer.hasExpiryPromptPending()) {
+    openTimerExpiryPrompt();
+    return;
+  }
+
+  if (ignoreNextBackRelease) {
+    // Drop one leaked Back edge from subactivity close so it doesn't trigger
+    // reader-level navigation (Home/file browser) on return.
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+        mappedInput.isPressed(MappedInputManager::Button::Back)) {
+      return;
+    }
+    ignoreNextBackRelease = false;
   }
 
   // Someone else turned the screen while this reader was stacked (the control
@@ -648,7 +703,23 @@ void EpubReaderActivity::loop() {
   const unsigned long heldMs = (touch.prev || touch.next) ? touch.heldMs : mappedInput.getHeldTime();
   const bool longPress = !fromTilt && heldMs >= ReaderUtils::SKIP_HOLD_MS;
   if (longPress && SETTINGS.longPressButtonBehavior == SETTINGS.CHAPTER_SKIP) {
-    skipPages(nextTriggered ? 1 : -1);
+    if (!nextTriggered && section && section->currentPage > 0) {
+      section->currentPage = 0;
+      requestUpdate();
+      return;
+    }
+
+    // We don't want to delete the section mid-render, so grab the semaphore
+    {
+      RenderLock lock(*this);
+      nextPageNumber = 0;
+      if (nextTriggered) {
+        currentSpineIndex++;
+      } else if (currentSpineIndex > 0) {
+        currentSpineIndex--;
+      }
+      section.reset();
+    }
     requestUpdate();
     return;
   }
@@ -867,6 +938,28 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           });
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::TIMER: {
+      startActivityForResult(
+          std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, readerTimer.getMode(),
+                                                    readerTimer.getSelectedValue(), StrId::STR_TIMER,
+                                                    readerTimer.isTimerActive()),
+          [this](const ActivityResult& result) {
+            // Consume leaked button edges from closing the timer picker so they
+            // do not immediately reopen the menu or trigger reader actions.
+            ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+                                    mappedInput.isPressed(MappedInputManager::Button::Back);
+            if (!result.isCancelled) {
+              readerTimer.applyTimerConfig(std::get<ReaderTimerConfigResult>(result.data), currentSpineIndex,
+                                           section ? section->currentPage : nextPageNumber);
+              // The picker is usually confirmed with the Confirm button;
+              // suppress that release in the reader loop.
+              ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
+                                         mappedInput.isPressed(MappedInputManager::Button::Confirm);
+            }
+            requestUpdate();
+          });
+      break;
+    }
     case EpubReaderMenuActivity::MenuAction::DICTIONARY: {
       openDictionaryWordSelect();
       break;
@@ -1043,6 +1136,70 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
   }
 }
 
+uint32_t EpubReaderActivity::remainingPagesInCurrentChapter() const {
+  if (!section || section->pageCount <= 0 || section->currentPage < 0 || section->currentPage >= section->pageCount) {
+    return 0;
+  }
+  // Include the current page so an "end of chapter" snooze expires only
+  // after advancing past the final page, not upon landing on it.
+  return static_cast<uint32_t>(section->pageCount - section->currentPage);
+}
+
+void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze) {
+  startActivityForResult(
+      std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, initialSnooze.mode, initialSnooze.value,
+                                                StrId::STR_SNOOZE, false),
+      [this](const ActivityResult& snoozeResult) {
+        ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+                                mappedInput.isPressed(MappedInputManager::Button::Back);
+        ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
+                                   mappedInput.isPressed(MappedInputManager::Button::Confirm);
+        if (snoozeResult.isCancelled) {
+          // Back from snooze selection closes the timer flow and returns to the book.
+          readerTimer.applyTimerConfig({ReaderTimerMode::Off, 0}, currentSpineIndex,
+                                       section ? section->currentPage : nextPageNumber);
+          requestUpdate();
+          return;
+        }
+        readerTimer.applySnoozeConfig(std::get<ReaderTimerConfigResult>(snoozeResult.data), currentSpineIndex,
+                                      section ? section->currentPage : nextPageNumber);
+        requestUpdate();
+      });
+}
+
+void EpubReaderActivity::openTimerExpiryPrompt() {
+  readerTimer.clearExpiryPromptPending();
+  startActivityForResult(std::make_unique<EpubReaderTimerPromptActivity>(renderer, mappedInput),
+                         [this](const ActivityResult& result) {
+                           ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
+                                                   mappedInput.isPressed(MappedInputManager::Button::Back);
+                           ignoreNextConfirmRelease =
+                               mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
+                               mappedInput.isPressed(MappedInputManager::Button::Confirm);
+
+                           uint32_t action = 0;
+                           if (std::holds_alternative<IntervalResult>(result.data)) {
+                             action = std::get<IntervalResult>(result.data).value;
+                           } else {
+                             // Backward compatibility with pre-tristate result handling.
+                             action = result.isCancelled ? 2 : 1;
+                           }
+
+                           if (action == 2) {
+                             pendingTimerSleepRequest = true;
+                             return;
+                           }
+
+                           if (action == 0) {
+                             requestUpdate();
+                             return;
+                           }
+
+                           const ReaderTimerConfigResult initialSnooze = readerTimer.getSnoozeConfig();
+                           openSnoozeSelection(initialSnooze);
+                         });
+}
+
 bool EpubReaderActivity::pageTurn(bool isForwardTurn) {
   if (!section) return false;
   {
@@ -1122,6 +1279,7 @@ bool EpubReaderActivity::skipLoopDelay() {
          (section->isPartial() || static_cast<int>(section->pageCount) < section->currentPage + BUILD_WINDOW_AHEAD);
 }
 
+// TODO: Failure handling
 void EpubReaderActivity::renderBook() {
   currentPageLinks.clear();
   if (!epub) return;
@@ -1769,6 +1927,7 @@ void EpubReaderActivity::renderStatusBar() const {
   const float bookProgress = epub ? (epub->calculateProgress(currentSpineIndex, sectionChapterProg) * 100) : 0;
 
   std::string title;
+
   int textYOffset = 0;
   const auto sb = SETTINGS.statusBarSpec();
 
@@ -1791,8 +1950,14 @@ void EpubReaderActivity::renderStatusBar() const {
     title = epub ? epub->getTitle() : "";
   }
 
+  char timerText[32] = {};
+  const char* statusBarTimerText = nullptr;
+  if (sb.showsTimerRemaining() && readerTimer.formatRemaining(timerText, sizeof(timerText))) {
+    statusBarTimerText = timerText;
+  }
+
   GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, currentPageBookmarked,
-                    section ? section->isBuilding() : false);
+                  section ? section->isBuilding() : false, statusBarTimerText);
 }
 
 // ---------------------------------------------------------------------------

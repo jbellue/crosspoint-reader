@@ -14,6 +14,7 @@
 #include "ChapterPosition.h"
 #include "EpubReaderMenuActivity.h"
 #include "ProgressMapper.h"
+#include "ReaderTimerController.h"
 #include "ReaderActivity.h"
 #include "ReaderToolbarUi.h"
 #include "components/OptionPopup.h"
@@ -39,11 +40,14 @@ class EpubReaderActivity final : public ReaderActivity {
   bool pendingSyncSaveError = false;
   uint8_t pageLoadRetryCount = 0;
   static constexpr uint8_t MAX_PAGE_LOAD_RETRIES = 3;
-  bool skipNextButtonCheck = false;
   bool automaticPageTurnActive = false;
+  ReaderTimerController readerTimer;
+  bool pendingTimerSleepRequest = false;
   bool showBookmarkMessage = false;
   bool showDictionaryMessage = false;
   unsigned long dictionaryMessageTime = 0UL;
+  bool ignoreNextConfirmRelease = false;
+  bool ignoreNextBackRelease = false;
   bool currentPageBookmarked = false;
   int idlePrewarmSpine = -1;
   int idlePrewarmPage = -1;
@@ -165,6 +169,9 @@ class EpubReaderActivity final : public ReaderActivity {
   unsigned long confirmLongPressThreshold() const;
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
   void loadCachedBookmarks();
+  void openTimerExpiryPrompt();
+  uint32_t remainingPagesInCurrentChapter() const;
+  void openSnoozeSelection(const ReaderTimerConfigResult& initialSnooze);
   void addBookmark();
   void updateBookmarkFlag();
 
