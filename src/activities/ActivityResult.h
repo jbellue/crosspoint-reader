@@ -17,10 +17,22 @@ struct KeyboardResult {
   std::string text;
 };
 
+enum class ReaderTimerMode : uint8_t {
+  Off,
+  Time,
+  Chapter,
+};
+
+struct ReaderTimerConfigResult {
+  ReaderTimerMode mode = ReaderTimerMode::Off;
+  uint32_t value = 0;  // seconds for time mode, count for page mode
+};
+
 struct MenuResult {
   int action = -1;
   uint8_t orientation = 0;
   uint8_t pageTurnOption = 0;
+  ReaderTimerConfigResult timerConfig;
 };
 
 struct ChapterResult {
@@ -67,9 +79,9 @@ struct FilePathResult {
   std::string path;
 };
 
-using ResultVariant =
-    std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult, IntervalResult,
-                 PageResult, ProgressChangeResult, NetworkModeResult, FootnoteResult, FilePathResult>;
+using ResultVariant = std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult,
+                                   IntervalResult, PageResult, ProgressChangeResult, NetworkModeResult, FootnoteResult,
+                                   FilePathResult, ReaderTimerConfigResult>;
 
 struct ActivityResult {
   bool isCancelled = false;

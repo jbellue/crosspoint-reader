@@ -55,6 +55,21 @@ void drawBookmarkStatusIcon(const GfxRenderer& renderer, const int x, const int 
   }
 }
 
+void drawTimerIcon(const GfxRenderer& renderer, const int x, const int y, const int size) {
+  namespace fui = freeink::ui;
+  if (size <= 0) return;
+  fui::GfxRendererTarget target(renderer);
+  const fui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(size),
+                       static_cast<int16_t>(size)};
+  target.bitmap(rect, fui::bitmapFromIcon(icon_header_alarm_clock_32), fui::BitmapMode::Contain,
+                fui::Paint::solid(fui::Color::Black));
+  // Add a subtle 1px overdraw to improve stroke visibility on e-ink.
+  const fui::Rect thickRect{static_cast<int16_t>(x + 1), static_cast<int16_t>(y), static_cast<int16_t>(size),
+                            static_cast<int16_t>(size)};
+  target.bitmap(thickRect, fui::bitmapFromIcon(icon_header_alarm_clock_32), fui::BitmapMode::Contain,
+                fui::Paint::solid(fui::Color::Black));
+}
+
 }  // namespace
 
 void BaseTheme::drawBatteryOutline(const GfxRenderer& renderer, int x, int y, int battWidth, int rectHeight) {
@@ -785,7 +800,8 @@ void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layou
 
 void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
                               const int pageCount, std::string title, const int paddingBottom, const int textYOffset,
-                              const bool fillMargin, const bool isPageBookmarked, const bool pageCountEstimated) {
+                              const bool fillMargin, const bool isPageBookmarked, const bool pageCountEstimated,
+                              const char* timerText) {
   auto metrics = UITheme::getInstance().getMetrics();
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -894,6 +910,34 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     const int bookmarkY = textY + 5;
     drawBookmarkStatusIcon(renderer, bookmarkX, bookmarkY);
     leftClusterWidth += bookmarkStatusIconWidth + bookmarkGap;
+  }
+
+  // Draw Timer Remaining (left or right side with small clock icon)
+  if (sb.showsTimerRemaining() && timerText != nullptr && timerText[0] != '\0') {
+    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+    const int timerIconSize = std::max(10, textHeight + 1);
+    const int timerIconGap = std::max(3, textHeight / 3);
+    const int timerIconWeightExtra = 1;
+    const int timerIconWidth = timerIconSize + timerIconGap + timerIconWeightExtra;
+    const int timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timerText);
+    // Keep the timer lane aligned with the status-bar typography: derive the
+    // inter-element gap from the small-font metrics, not a brittle constant.
+    const int clusterGap = std::max(4, textHeight / 2);
+    int iconX = 0;
+    int textX = 0;
+
+    if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_LEFT) {
+      iconX = leftClusterX + leftClusterWidth + (leftClusterWidth > 0 ? clusterGap : 0);
+      textX = iconX + timerIconWidth;
+      leftClusterWidth += timerIconWidth + timerTextWidth + clusterGap;
+    } else if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_RIGHT) {
+      textX = rightClusterX - rightClusterWidth - (rightClusterWidth > 0 ? clusterGap : 0) - timerTextWidth;
+      iconX = textX - timerIconWidth;
+      rightClusterWidth += timerIconWidth + timerTextWidth + clusterGap;
+    }
+
+    drawTimerIcon(renderer, iconX, textY + std::max(0, (textHeight - timerIconSize) / 2) + 2, timerIconSize);
+    renderer.drawText(SMALL_FONT_ID, textX, textY, timerText);
   }
 
   // Draw Title

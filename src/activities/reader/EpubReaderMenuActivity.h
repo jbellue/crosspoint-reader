@@ -14,6 +14,7 @@ class EpubReaderMenuActivity final : public UiListActivity {
   enum class MenuAction {
     SELECT_CHAPTER,
     FOOTNOTES,
+    TIMER,
     TEXT_SETTINGS,
     NIGHT_MODE,
     FRONTLIGHT,
@@ -39,7 +40,9 @@ class EpubReaderMenuActivity final : public UiListActivity {
 
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
-                                  const uint8_t currentOrientation, const bool hasFootnotes, bool hasBookmarks);
+                                  const uint8_t currentOrientation, const bool hasFootnotes, bool hasBookmarks,
+                                  const char* timerMenuLabel, ReaderTimerMode currentTimerMode,
+                                  uint32_t currentTimerValue, bool hasRunningTimer);
 
   void render(RenderLock&&) override;
   bool handleHomeGesture() override;
@@ -49,7 +52,7 @@ class EpubReaderMenuActivity final : public UiListActivity {
   // fixed-capacity array avoids any heap allocation for the row list. Labels
   // are set once in the constructor (buildMenuRowItems()); buildScreen()
   // only refreshes rows whose values reflect live state.
-  static constexpr size_t MAX_MENU_ITEMS = 16;
+  static constexpr size_t MAX_MENU_ITEMS = 18;
   freeink::ui::ListItem menuRowItems[MAX_MENU_ITEMS]{};
   void buildMenuRowItems();
 
@@ -71,6 +74,10 @@ class EpubReaderMenuActivity final : public UiListActivity {
 
   OptionPopup optionPopup;
   std::string title = "Reader Menu";
+  char timerMenuLabel[64] = {};
+  ReaderTimerMode currentTimerMode = ReaderTimerMode::Off;
+  uint32_t currentTimerValue = 0;
+  bool hasRunningTimer = false;
   uint8_t pendingOrientation = 0;
   uint8_t selectedPageTurnOption = 0;
   const std::vector<StrId> orientationLabels = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED,
