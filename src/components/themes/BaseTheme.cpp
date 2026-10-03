@@ -910,6 +910,15 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     }
   }
 
+  // Draw Bookmark
+  if (showStatusBarTextLane && isPageBookmarked) {
+    const int bookmarkGap = leftClusterWidth > 0 ? bookmarkStatusIconGap : 0;
+    const int bookmarkX = leftClusterX + leftClusterWidth + bookmarkGap;
+    const int bookmarkY = textY + 5;
+    drawBookmarkStatusIcon(renderer, bookmarkX, bookmarkY);
+    leftClusterWidth += bookmarkStatusIconWidth + bookmarkGap;
+  }
+
   // Draw Timer Remaining (left or right side with small clock icon)
   if (sb.showsTimerRemaining() && timerText != nullptr && timerText[0] != '\0') {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
