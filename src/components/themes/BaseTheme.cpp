@@ -55,33 +55,19 @@ void drawBookmarkStatusIcon(const GfxRenderer& renderer, const int x, const int 
   }
 }
 
-void drawTimerHourglassIcon(const GfxRenderer& renderer, const int x, const int y, const int height, const int width) {
-  const int iconRightX = x + width;
-  const int iconBotY = y + height;
-  const int hLineThickness = 2;
-  for (int i = 0; i < hLineThickness; ++i) {
-    renderer.drawLine(x, y + i,        iconRightX, y + i       ); // top
-    renderer.drawLine(x, iconBotY - i, iconRightX, iconBotY - i); // bottom
-  }
-
-  const int quarterHeight = height / 4;
-  const int iconVLineYTop = y + hLineThickness;
-  const int iconDiagonalTopY = iconVLineYTop + quarterHeight;
-  const int iconVLineYBot = iconBotY - hLineThickness;
-  const int iconDiagonalBotY = iconVLineYBot - quarterHeight;
-  const int iconVLinessXOffset = 1;
-  const int iconVerticalsRight = iconRightX - iconVLinessXOffset;
-  const int iconVerticalsLeft = x + iconVLinessXOffset;
-
-  // Verticals
-  renderer.drawLine(iconVerticalsLeft,  iconVLineYTop,    iconVerticalsLeft,  iconDiagonalTopY); // left top
-  renderer.drawLine(iconVerticalsRight, iconVLineYTop,    iconVerticalsRight, iconDiagonalTopY); // right top
-  renderer.drawLine(iconVerticalsLeft,  iconDiagonalBotY, iconVerticalsLeft,  iconVLineYBot   ); // left bottom
-  renderer.drawLine(iconVerticalsRight, iconDiagonalBotY, iconVerticalsRight, iconVLineYBot   ); // right bottom
-
-  // Diagonals
-  renderer.drawLine(iconVerticalsLeft,  iconDiagonalTopY, iconVerticalsRight, iconDiagonalBotY);
-  renderer.drawLine(iconVerticalsRight, iconDiagonalTopY, iconVerticalsLeft,  iconDiagonalBotY);
+void drawTimerIcon(const GfxRenderer& renderer, const int x, const int y, const int size) {
+  namespace fui = freeink::ui;
+  if (size <= 0) return;
+  fui::GfxRendererTarget target(renderer);
+  const fui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(size),
+                       static_cast<int16_t>(size)};
+  target.bitmap(rect, fui::bitmapFromIcon(icon_header_alarm_clock_32), fui::BitmapMode::Contain,
+                fui::Paint::solid(fui::Color::Black));
+  // Add a subtle 1px overdraw to improve stroke visibility on e-ink.
+  const fui::Rect thickRect{static_cast<int16_t>(x + 1), static_cast<int16_t>(y), static_cast<int16_t>(size),
+                            static_cast<int16_t>(size)};
+  target.bitmap(thickRect, fui::bitmapFromIcon(icon_header_alarm_clock_32), fui::BitmapMode::Contain,
+                fui::Paint::solid(fui::Color::Black));
 }
 
 } // namespace
@@ -927,9 +913,10 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   // Draw Timer Remaining (left or right side with small clock icon)
   if (sb.showsTimerRemaining() && timerText != nullptr && timerText[0] != '\0') {
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
-    const int timerHourglassIconWidth = textHeight / 2;  // 50% of font height
-    const int timerHourglassIconGap = 4;
-    const int timerHourglassWidth = timerHourglassIconWidth + timerHourglassIconGap;
+    const int timerIconSize = std::max(10, textHeight + 1);
+    const int timerIconGap = std::max(3, textHeight / 3);
+    const int timerIconWeightExtra = 1;
+    const int timerIconWidth = timerIconSize + timerIconGap + timerIconWeightExtra;
     const int timerTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timerText);
     // Keep the timer lane aligned with the status-bar typography: derive the
     // inter-element gap from the small-font metrics, not a brittle constant.
@@ -939,15 +926,15 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
     if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_LEFT) {
       iconX = leftClusterX + leftClusterWidth + (leftClusterWidth > 0 ? clusterGap : 0);
-      textX = iconX + timerHourglassWidth;
-      leftClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
+      textX = iconX + timerIconWidth;
+      leftClusterWidth += timerIconWidth + timerTextWidth + clusterGap;
     } else if (sb.timerMode == CrossPointSettings::STATUS_BAR_TIMER_RIGHT) {
       textX = rightClusterX - rightClusterWidth - (rightClusterWidth > 0 ? clusterGap : 0) - timerTextWidth;
-      iconX = textX - timerHourglassWidth;
-      rightClusterWidth += timerHourglassWidth + timerTextWidth + clusterGap;
+      iconX = textX - timerIconWidth;
+      rightClusterWidth += timerIconWidth + timerTextWidth + clusterGap;
     }
 
-    drawTimerHourglassIcon(renderer, iconX, textY + 5, textHeight - 5, timerHourglassIconWidth);
+    drawTimerIcon(renderer, iconX, textY + std::max(0, (textHeight - timerIconSize) / 2) + 2, timerIconSize);
     renderer.drawText(SMALL_FONT_ID, textX, textY, timerText);
   }
 
