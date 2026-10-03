@@ -866,13 +866,6 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     renderer.fillRect(barMarginLeft, progressBarY, barWidth, barHeight, true);
   }
 
-  // Draw Bookmark
-  if (showStatusBarTextLane && isPageBookmarked) {
-    const int bookmarkY = textY + 5;
-    drawBookmarkStatusIcon(renderer, leftClusterX, bookmarkY);
-    leftClusterWidth += bookmarkStatusIconWidth + bookmarkStatusIconGap;
-  }
-
   // Draw Battery
   const bool showBatteryPercentage = sb.showBatteryPercent;
 
