@@ -158,7 +158,11 @@ void StatusBarSettingsActivity::handleSelection() {
       SETTINGS.statusBarBattery = (SETTINGS.statusBarBattery + 1) % 2;
       break;
     case ITEM_TIMER_REMAINING:
-      SETTINGS.statusBarTimer = (SETTINGS.statusBarTimer + 1) % STATUS_BAR_TIMER_ITEMS;
+      optionPopup.show(StrId::STR_TIMER_REMAINING, statusBarTimerNames, STATUS_BAR_TIMER_ITEMS, SETTINGS.statusBarTimer,
+                  [this](int idx) {
+                    SETTINGS.statusBarTimer = idx;
+                    SETTINGS.saveToFile();
+                  });
       break;
     case ITEM_XTC_STATUS_BAR:
       optionPopup.show(StrId::STR_XTC_STATUS_BAR, xtcStatusBarNames, XTC_STATUS_BAR_ITEMS, SETTINGS.xtcStatusBarMode,
