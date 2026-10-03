@@ -423,7 +423,6 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     uint8_t clockMode = STATUS_BAR_CLOCK_HIDE;  // STATUS_BAR_CLOCK_MODE
     bool clock12h = false;
     uint8_t timerMode = STATUS_BAR_TIMER_HIDE;  // STATUS_BAR_TIMER_MODE
-    uint8_t clockUtcOffsetQ = 48;               // 48 = UTC+0
     uint8_t progressBarMode = HIDE_PROGRESS;    // STATUS_BAR_PROGRESS_BAR
     uint8_t progressBarHeightPx = 0;            // (thickness+1)*2; 0 when the bar is hidden
     uint8_t xtcMode = XTC_STATUS_BAR_HIDE;      // XTC_STATUS_BAR_MODE
