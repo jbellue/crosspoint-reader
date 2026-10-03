@@ -1,9 +1,9 @@
 #pragma once
 
+#include <I18n.h>
+
 #include <array>
 #include <cstdint>
-
-#include <I18n.h>
 
 #include "activities/ActivityResult.h"
 
@@ -19,14 +19,12 @@ inline constexpr std::array<ReaderTimerConfigResult, 7> kTimeConfigs = {{
     {ReaderTimerMode::Chapter, 1},
 }};
 
-inline constexpr std::array<StrId, 7> kTimeLabelIds = {
-    StrId::STR_SEC_10,
-    StrId::STR_MIN_5,
-    StrId::STR_MIN_10,
-    StrId::STR_MIN_15,
-    StrId::STR_MIN_30,
-    StrId::STR_HOUR_1,
-    StrId::STR_SNOOZE_END_CHAPTER
-};
+inline constexpr std::array<StrId, 7> kTimeLabelIds = {StrId::STR_SEC_10,
+                                                       StrId::STR_MIN_5,
+                                                       StrId::STR_MIN_10,
+                                                       StrId::STR_MIN_15,
+                                                       StrId::STR_MIN_30,
+                                                       StrId::STR_HOUR_1,
+                                                       StrId::STR_SNOOZE_END_CHAPTER};
 
 }  // namespace ReaderTimerPresets

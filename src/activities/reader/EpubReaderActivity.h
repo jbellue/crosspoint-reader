@@ -14,8 +14,8 @@
 #include "ChapterPosition.h"
 #include "EpubReaderMenuActivity.h"
 #include "ProgressMapper.h"
-#include "ReaderTimerController.h"
 #include "ReaderActivity.h"
+#include "ReaderTimerController.h"
 #include "ReaderToolbarUi.h"
 #include "components/OptionPopup.h"
 

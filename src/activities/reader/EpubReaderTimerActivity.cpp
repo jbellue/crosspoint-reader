@@ -10,8 +10,7 @@
 EpubReaderTimerActivity::EpubReaderTimerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                  const ReaderTimerMode currentMode, const uint32_t currentValue,
                                                  const StrId screenTitleId, const bool includeOff)
-  : Activity("EpubReaderTimer", renderer, mappedInput), titleId(screenTitleId) {
-
+    : Activity("EpubReaderTimer", renderer, mappedInput), titleId(screenTitleId) {
   const bool allowOffOption = includeOff && screenTitleId != StrId::STR_SNOOZE;
   if (allowOffOption && optionCount < MAX_OPTIONS) {
     options[optionCount++] = {ReaderTimerMode::Off, 0, StrId::STR_TIMER_OFF};
@@ -86,4 +85,6 @@ void EpubReaderTimerActivity::loop() {
   }
 }
 
-void EpubReaderTimerActivity::render(RenderLock&&) { if (optionPopup.processRender(renderer, mappedInput)) return; }
+void EpubReaderTimerActivity::render(RenderLock&&) {
+  if (optionPopup.processRender(renderer, mappedInput)) return;
+}

@@ -1,10 +1,10 @@
 #pragma once
 
+#include <I18n.h>
+
 #include <array>
 #include <cstdint>
 #include <string>
-
-#include <I18n.h>
 
 #include "activities/Activity.h"
 #include "components/OptionPopup.h"

@@ -16,10 +16,8 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
                                                const bool hasFootnotes, const bool hasBookmarks,
-                                               const char* timerMenuLabel,
-                                               const ReaderTimerMode currentTimerMode,
-                                               const uint32_t currentTimerValue,
-                                               const bool hasRunningTimer)
+                                               const char* timerMenuLabel, const ReaderTimerMode currentTimerMode,
+                                               const uint32_t currentTimerValue, const bool hasRunningTimer)
     : UiListActivity("EpubReaderMenu", renderer, mappedInput),
       title(title),
       currentTimerMode(currentTimerMode),
@@ -154,15 +152,15 @@ void EpubReaderMenuActivity::activateIndex(const int index) {
           }
 
           const auto timerConfig = std::get<ReaderTimerConfigResult>(timerResult.data);
-          setResult(MenuResult{static_cast<int>(MenuAction::TIMER), pendingOrientation, selectedPageTurnOption,
-                               timerConfig});
+          setResult(
+              MenuResult{static_cast<int>(MenuAction::TIMER), pendingOrientation, selectedPageTurnOption, timerConfig});
           finish();
         });
     return;
   }
 
-  setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption,
-                       {ReaderTimerMode::Off, 0}});
+  setResult(MenuResult{
+      static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption, {ReaderTimerMode::Off, 0}});
   finish();
 }
 

@@ -81,7 +81,8 @@ void ReaderTimerController::consumeTimerStep(const ReaderTimerMode mode, const u
   }
 }
 
-void ReaderTimerController::recordForwardAdvance(const int newSpineIndex, const int newPage, const bool consumedPageStep) {
+void ReaderTimerController::recordForwardAdvance(const int newSpineIndex, const int newPage,
+                                                 const bool consumedPageStep) {
   if (!consumedPageStep) {
     return;
   }
@@ -123,4 +124,3 @@ bool ReaderTimerController::formatRemaining(char* buffer, size_t bufferSize, boo
 
   return false;
 }
-
