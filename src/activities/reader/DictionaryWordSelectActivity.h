@@ -76,8 +76,8 @@ class DictionaryWordSelectActivity final : public Activity {
   bool autoLookup = false;
   int autoLookupX = 0;
   int autoLookupY = 0;
+  // onEnter() consumes the touch coordinates to seed the first-loop lookup.
   bool pendingAutoLookup = false;
-  bool pendingAutoFinish = false;
   bool finishAfterDefinition = false;
 
   // Differential highlight repaint: the pixels under the current highlight

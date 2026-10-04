@@ -59,9 +59,7 @@ void DictionaryWordSelectActivity::onEnter() {
   }
   if (autoLookup) {
     const int hit = wordAt(autoLookupX, autoLookupY);
-    if (hit < 0) {
-      pendingAutoFinish = true;
-    } else {
+    if (hit >= 0) {
       selected = hit;
       finishAfterDefinition = true;
       pendingAutoLookup = true;
@@ -247,11 +245,6 @@ void DictionaryWordSelectActivity::performLookup() {
 }
 
 void DictionaryWordSelectActivity::loop() {
-  if (pendingAutoFinish) {
-    pendingAutoFinish = false;
-    finish();
-    return;
-  }
   if (pendingAutoLookup) {
     pendingAutoLookup = false;
     performLookup();
