@@ -2,6 +2,7 @@
 
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
+#include <Logging.h>
 #include <Memory.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -63,6 +64,8 @@ void DictionaryWordSelectActivity::onEnter() {
       selected = hit;
       finishAfterDefinition = true;
       pendingAutoLookup = true;
+    } else {
+      LOG_DBG("DictSel", "No word at long-press (%d,%d); staying in manual select", autoLookupX, autoLookupY);
     }
   }
   requestUpdate();
