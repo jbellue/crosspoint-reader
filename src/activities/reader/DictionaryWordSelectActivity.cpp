@@ -64,7 +64,7 @@ void DictionaryWordSelectActivity::onEnter() {
       selected = hit;
       finishAfterDefinition = true;
       pendingAutoLookup = true;
-      pendingAutoLookupDelayTicks = 1;
+      pendingAutoLookupFirstTick = true;
     } else {
       LOG_DBG("DictSel", "No word at long-press (%d,%d); staying in manual select", autoLookupX, autoLookupY);
     }
@@ -250,8 +250,8 @@ void DictionaryWordSelectActivity::performLookup() {
 
 void DictionaryWordSelectActivity::loop() {
   if (pendingAutoLookup) {
-    if (pendingAutoLookupDelayTicks > 0) {
-      pendingAutoLookupDelayTicks--;
+    if (pendingAutoLookupFirstTick) {
+      pendingAutoLookupFirstTick = false;
       return;
     }
     pendingAutoLookup = false;
