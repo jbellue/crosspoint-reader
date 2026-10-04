@@ -57,6 +57,17 @@ void DictionaryWordSelectActivity::onEnter() {
     const int initial = closestInRow(rowCount / 2, renderer.getScreenWidth() / 2);
     if (initial >= 0) selected = initial;
   }
+  if (autoLookup) {
+    const int hit = wordAt(autoLookupX, autoLookupY);
+    if (hit < 0) {
+      finish();
+      return;
+    }
+    selected = hit;
+    finishAfterDefinition = true;
+    performLookup();
+    return;
+  }
   requestUpdate();
 }
 
@@ -183,7 +194,13 @@ void DictionaryWordSelectActivity::performLookup() {
     startActivityForResult(
         std::make_unique<DictionaryDefinitionActivity>(renderer, mappedInput, std::move(headword),
                                                        std::move(definition), dict.definitionsAreHtml()),
-        [this](const ActivityResult&) { requestUpdate(); });
+        [this](const ActivityResult&) {
+          if (finishAfterDefinition) {
+            finish();
+          } else {
+            requestUpdate();
+          }
+        });
     return;
   }
   // Name the failure: a genuine miss is "Not found"; a word that WAS found but

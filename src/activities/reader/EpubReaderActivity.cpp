@@ -334,7 +334,7 @@ void EpubReaderActivity::showBuildPopup(GfxRenderer& renderer, int& pagesUntilFu
   buildPopupPending = false;
 }
 
-void EpubReaderActivity::openDictionaryWordSelect() {
+void EpubReaderActivity::openDictionaryWordSelect(const bool autoLookup, const int autoLookupX, const int autoLookupY) {
   if (SETTINGS.dictionaryName[0] == '\0') {
     showDictionaryMessage = true;
     dictionaryMessageTime = millis();
@@ -352,7 +352,8 @@ void EpubReaderActivity::openDictionaryWordSelect() {
   orientedMarginLeft += SETTINGS.screenMargin;
 
   startActivityForResult(std::make_unique<DictionaryWordSelectActivity>(renderer, mappedInput, std::move(page),
-                                                                        orientedMarginLeft, orientedMarginTop),
+                                                                        orientedMarginLeft, orientedMarginTop,
+                                                                        autoLookup, autoLookupX, autoLookupY),
                          [this](const ActivityResult&) { requestUpdate(); });
 }
 
@@ -628,6 +629,19 @@ void EpubReaderActivity::loop() {
         return;
       default:
         break;
+    }
+  }
+
+  // Optional touch long-press dictionary lookup: consume the touch before tap
+  // routing so the long-press release cannot trigger another action.
+  if (!atEndOfBook && mappedInput.hasTouch() &&
+      SETTINGS.touchDictionaryTrigger == CrossPointSettings::LONG_PRESS_WORD) {
+    int touchX = 0;
+    int touchY = 0;
+    if (mappedInput.wasScreenLongPress(touchX, touchY)) {
+      haptic_feedback::touchAction(true);
+      openDictionaryWordSelect(true, touchX, touchY);
+      return;
     }
   }
 

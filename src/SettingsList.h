@@ -334,6 +334,11 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
                           "sideButtonLayout", StrId::STR_CAT_CONTROLS),
         SettingInfo::Toggle(StrId::STR_TOUCH_READER_CONTROLS, &CrossPointSettings::touchReaderControls,
                             "touchReaderControls", StrId::STR_CAT_CONTROLS),
+#if FREEINK_CAP_TOUCH
+        SettingInfo::Enum(StrId::STR_TOUCH_DICTIONARY_TRIGGER, &CrossPointSettings::touchDictionaryTrigger,
+                          {StrId::STR_DICT_TRIGGER_WORD_SELECT, StrId::STR_DICT_TRIGGER_LONG_PRESS},
+                          "touchDictionaryTrigger", StrId::STR_CAT_CONTROLS),
+#endif
         SettingInfo::Enum(StrId::STR_NEXT_PAGE_GESTURE, &CrossPointSettings::pageTurnGesture,
                           {StrId::STR_TAP_AND_SWIPE, StrId::STR_TAP_ONLY, StrId::STR_SWIPE_ONLY,
                            StrId::STR_INVERTED_TAP, StrId::STR_DISABLED},

@@ -192,6 +192,14 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // painted over the page.
   enum READER_MENU_STYLE { READER_MENU_LIST = 0, READER_MENU_TOOLBAR = 1, READER_MENU_STYLE_COUNT };
 
+  // Touch dictionary trigger in the reader. WORD_SELECT keeps the current flow
+  // (open selector first), LONG_PRESS_WORD looks up directly from a long press.
+  enum TOUCH_DICTIONARY_TRIGGER {
+    WORD_SELECT = 0,
+    LONG_PRESS_WORD = 1,
+    TOUCH_DICTIONARY_TRIGGER_COUNT
+  };
+
   enum TILT_PAGE_TURN { TILT_OFF = 0, TILT_NORMAL = 1, TILT_NVERTED = 2, TILT_PAGE_TURN_COUNT };
   enum VIBRATION { VIBRATION_TOUCH = 0, VIBRATION_TOUCH_PAGE = 1, VIBRATION_OFF = 2 };
   uint8_t vibration = VIBRATION_OFF;
@@ -355,6 +363,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t tiltPageTurn = TILT_OFF;
   // Master reader-touch toggle on boards with a touch controller.
   uint8_t touchReaderControls = TOUCH_READER_ON;
+  // Touch dictionary trigger mode (TOUCH_DICTIONARY_TRIGGER).
+  uint8_t touchDictionaryTrigger = WORD_SELECT;
   // Which gestures turn the page in each direction (PAGE_TURN_GESTURE).
   uint8_t pageTurnGesture = SWIPE_ONLY;
   uint8_t previousPageGesture = SWIPE_ONLY;

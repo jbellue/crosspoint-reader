@@ -12,15 +12,21 @@
 // Word selection over the current reader page: Left/Right step through words
 // in reading order, Up/Down jump rows, Confirm looks the word up and opens
 // DictionaryDefinitionActivity, Back returns to the reader. On touch devices a
-// touch-down moves the highlight and a tap on a word looks it up directly.
+// touch-down moves the highlight and a tap on a word looks it up directly. An
+// optional auto-lookup mode enters on a specific touch point and exits back to
+// the reader after closing the definition.
 class DictionaryWordSelectActivity final : public Activity {
  public:
   explicit DictionaryWordSelectActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                        std::unique_ptr<Page> page, int marginLeft, int marginTop)
+                                        std::unique_ptr<Page> page, int marginLeft, int marginTop,
+                                        bool autoLookup = false, int autoLookupX = 0, int autoLookupY = 0)
       : Activity("DictionaryWordSelect", renderer, mappedInput),
         page(std::move(page)),
         marginLeft(marginLeft),
-        marginTop(marginTop) {}
+        marginTop(marginTop),
+        autoLookup(autoLookup),
+        autoLookupX(autoLookupX),
+        autoLookupY(autoLookupY) {}
 
   void onEnter() override;
   void loop() override;
@@ -67,6 +73,10 @@ class DictionaryWordSelectActivity final : public Activity {
   Popup popup = Popup::None;
   StrId popupMsg = StrId::STR_DICT_NOT_FOUND;
   unsigned long popupTime = 0;
+  bool autoLookup = false;
+  int autoLookupX = 0;
+  int autoLookupY = 0;
+  bool finishAfterDefinition = false;
 
   // Differential highlight repaint: the pixels under the current highlight
   // box, so a cursor move restores them and repaints only the two affected
