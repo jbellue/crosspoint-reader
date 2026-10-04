@@ -76,6 +76,8 @@ class DictionaryWordSelectActivity final : public Activity {
   bool autoLookup = false;
   int autoLookupX = 0;
   int autoLookupY = 0;
+  bool pendingAutoLookup = false;
+  bool pendingAutoFinish = false;
   bool finishAfterDefinition = false;
 
   // Differential highlight repaint: the pixels under the current highlight

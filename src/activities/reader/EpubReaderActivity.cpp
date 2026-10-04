@@ -636,7 +636,7 @@ void EpubReaderActivity::loop() {
   // Optional touch long-press dictionary lookup: consume the touch before tap
   // routing so the long-press release cannot trigger another action.
   if (!atEndOfBook && mappedInput.hasTouch() &&
-      SETTINGS.touchDictionaryTrigger == CrossPointSettings::LONG_PRESS_WORD) {
+      SETTINGS.touchDictionaryTrigger == CrossPointSettings::DICT_TRIGGER_LONG_PRESS) {
     int touchX = 0;
     int touchY = 0;
     if (mappedInput.wasScreenLongPress(touchX, touchY)) {

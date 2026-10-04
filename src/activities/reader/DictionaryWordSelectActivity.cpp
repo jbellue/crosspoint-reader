@@ -60,13 +60,12 @@ void DictionaryWordSelectActivity::onEnter() {
   if (autoLookup) {
     const int hit = wordAt(autoLookupX, autoLookupY);
     if (hit < 0) {
-      finish();
-      return;
+      pendingAutoFinish = true;
+    } else {
+      selected = hit;
+      finishAfterDefinition = true;
+      pendingAutoLookup = true;
     }
-    selected = hit;
-    finishAfterDefinition = true;
-    performLookup();
-    return;
   }
   requestUpdate();
 }
@@ -248,6 +247,17 @@ void DictionaryWordSelectActivity::performLookup() {
 }
 
 void DictionaryWordSelectActivity::loop() {
+  if (pendingAutoFinish) {
+    pendingAutoFinish = false;
+    finish();
+    return;
+  }
+  if (pendingAutoLookup) {
+    pendingAutoLookup = false;
+    performLookup();
+    return;
+  }
+
   if (popup == Popup::NotFound || popup == Popup::Error) {
     if (millis() - popupTime >= POPUP_DURATION_MS) {
       popup = Popup::None;
