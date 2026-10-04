@@ -252,6 +252,7 @@ void DictionaryWordSelectActivity::loop() {
   if (pendingAutoLookup) {
     if (pendingAutoLookupFirstTick) {
       pendingAutoLookupFirstTick = false;
+      requestUpdate();
       return;
     }
     pendingAutoLookup = false;
