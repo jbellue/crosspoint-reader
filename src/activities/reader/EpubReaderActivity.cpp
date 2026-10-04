@@ -632,6 +632,7 @@ void EpubReaderActivity::loop() {
     }
   }
 
+#if FREEINK_CAP_TOUCH
   // Optional touch long-press dictionary lookup: consume the touch before tap
   // routing so the long-press release cannot trigger another action.
   if (!atEndOfBook && mappedInput.hasTouch() &&
@@ -644,6 +645,7 @@ void EpubReaderActivity::loop() {
       return;
     }
   }
+#endif
 
   // Link taps take priority over the reader-menu and page-turn zones.
   if (!atEndOfBook && !currentPageLinks.empty() && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
