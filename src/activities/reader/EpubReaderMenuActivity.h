@@ -22,6 +22,8 @@ class EpubReaderMenuActivity final : public UiListActivity {
     AUTO_PAGE_TURN,
     ROTATE_SCREEN,
     BOOKMARKS,
+    SAVE_CLIPPING,
+    VIEW_CLIPPINGS,
     TOGGLE_BOOKMARK,
     SCREENSHOT,
     DISPLAY_QR,
@@ -36,12 +38,12 @@ class EpubReaderMenuActivity final : public UiListActivity {
     StrId labelId;
   };
 
-  static void buildMenuItems(std::vector<MenuItem>& items, bool hasFootnotes, bool hasBookmarks);
+  static void buildMenuItems(std::vector<MenuItem>& items, bool hasFootnotes, bool hasBookmarks, bool hasClippings);
 
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
                                   const uint8_t currentOrientation, const bool hasFootnotes, bool hasBookmarks,
-                                  const char* timerMenuLabel, ReaderTimerMode currentTimerMode,
+                                  bool hasClippings, const char* timerMenuLabel, ReaderTimerMode currentTimerMode,
                                   uint32_t currentTimerValue, bool hasRunningTimer);
 
   void render(RenderLock&&) override;
