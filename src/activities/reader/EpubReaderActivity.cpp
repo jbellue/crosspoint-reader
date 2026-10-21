@@ -363,7 +363,6 @@ void EpubReaderActivity::openReaderMenu() {
           if (action == EpubReaderMenuActivity::MenuAction::TIMER) {
             readerTimer.applyTimerConfig(menu.timerConfig, currentSpineIndex,
                                          section ? section->currentPage : nextPageNumber);
-            ignoreNextConfirmRelease = true;
             requestUpdate();
           } else {
             onReaderMenuConfirm(action);
@@ -607,15 +606,6 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  if (ignoreNextBackRelease) {
-    // Drop one leaked Back edge from subactivity close so it doesn't trigger
-    // reader-level navigation (Home/file browser) on return.
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-        mappedInput.isPressed(MappedInputManager::Button::Back)) {
-      return;
-    }
-    ignoreNextBackRelease = false;
-  }
   rememberBookOnceRendered();
 
   // Someone else turned the screen while this reader was stacked (the control
@@ -1199,17 +1189,9 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                                                     readerTimer.getSelectedValue(), StrId::STR_TIMER,
                                                     readerTimer.isTimerActive()),
           [this](const ActivityResult& result) {
-            // // Consume leaked button edges from closing the timer picker so they
-            // // do not immediately reopen the menu or trigger reader actions.
-            // ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-            //                         mappedInput.isPressed(MappedInputManager::Button::Back);
             if (!result.isCancelled) {
               readerTimer.applyTimerConfig(std::get<ReaderTimerConfigResult>(result.data), currentSpineIndex,
                                            section ? section->currentPage : nextPageNumber);
-              // The picker is usually confirmed with the Confirm button;
-              // suppress that release in the reader loop.
-              ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
-                                         mappedInput.isPressed(MappedInputManager::Button::Confirm);
             }
             requestUpdate();
           });
@@ -1416,10 +1398,6 @@ void EpubReaderActivity::openSnoozeSelection(const ReaderTimerConfigResult& init
   startActivityForResult(std::make_unique<EpubReaderTimerActivity>(renderer, mappedInput, initialSnooze.mode,
                                                                    initialSnooze.value, StrId::STR_SNOOZE, false),
                          [this](const ActivityResult& snoozeResult) {
-                           ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-                                                   mappedInput.isPressed(MappedInputManager::Button::Back);
-                           ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
-                                                      mappedInput.isPressed(MappedInputManager::Button::Confirm);
                            if (snoozeResult.isCancelled) {
                              // Back from snooze selection closes the timer flow and returns to the book.
                              readerTimer.applyTimerConfig({ReaderTimerMode::Off, 0}, currentSpineIndex,
@@ -1438,11 +1416,6 @@ void EpubReaderActivity::openTimerExpiryPrompt() {
   readerTimer.clearExpiryPromptPending();
   startActivityForResult(std::make_unique<EpubReaderTimerPromptActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
-                           ignoreNextBackRelease = mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-                                                   mappedInput.isPressed(MappedInputManager::Button::Back);
-                           ignoreNextConfirmRelease = mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
-                                                      mappedInput.isPressed(MappedInputManager::Button::Confirm);
-
                            uint32_t action = 0;
                            if (std::holds_alternative<IntervalResult>(result.data)) {
                              action = std::get<IntervalResult>(result.data).value;
